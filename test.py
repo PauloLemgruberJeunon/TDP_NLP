@@ -1,30 +1,37 @@
-import nltk, re, pprint
+import nltk
+from nltk.tag.stanford import CoreNLPPOSTagger
 
-#doc = open('txtDocs/test.txt')
-#raw = doc.read().lower()
+#*******************************************************************************************
 
-path = nltk.data.find('corpora/gutenberg/melville-moby_dick.txt')
-raw = open(path, 'rU').read().lower()
-raw = raw[0:35000]
+# tagged_text = nltk.corpus.treebank.tagged_sents()
+# tagged_text = tagged_text[0:150]
 
-tokens = nltk.word_tokenize(raw)
+raw = nltk.corpus.gutenberg.raw('melville-moby_dick.txt')
+raw = raw[30:40000]
 
-tagger = nltk.tag.StanfordPOSTagger('stanford-postagger-2017-06-09/models/english-bidirectional-distsim.tagger'
-                                    , 'stanford-postagger-2017-06-09/stanford-postagger.jar')
-tagged_words = tagger.tag(tokens)
+# tokens = []
+# tok_sent = []
+# for sents in tagged_text:
+#     for (word,tag) in sents:
+#         tok_sent.append(word)
+#     tokens.append(tok_sent.copy())
+#     tok_sent.clear()
 
-verbs_dict = {}
+tagger = CoreNLPPOSTagger(url='http://localhost:9000')
 
-for (word, tag) in tagged_words:
-    if tag[0] == 'V':
-        if word in verbs_dict:
-            verbs_dict[word] += 1
-        else:
-            verbs_dict[word] = 1
-    else:
-        continue
+# tagged_words = []
+# tagged_sent = []
+# print('To tag sents = ' + str(len(tokens)))
+# for i in range(0,len(tokens)):
+#     tagged_sent = tagger.tag(tokens[i])
+#     tagged_words.append(tagged_sent)
+#     print('[Tagging] Current stage = ' + str(i))
 
-verb_fd = nltk.FreqDist(word for (word, tag) in tagged_words if tag[0] == 'V')
-verb_fd.plot(cumulative=False)
 
-print(verbs_dict)
+# print('Accuracy: ' + str(measurePOSTagAccuracy(tagged_text, tagged_words)))
+
+# quit()
+
+
+
+#verb_fd = nltk.FreqDist(word for (word, tag) in tagged_words if tag[0] ==
