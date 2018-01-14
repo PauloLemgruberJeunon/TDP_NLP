@@ -1,3 +1,7 @@
+"""
+Script used to extract the text of a PDF book
+"""
+
 from wand.image import Image
 from PIL import Image as PI
 import pyocr
