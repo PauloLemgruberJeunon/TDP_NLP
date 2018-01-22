@@ -1,5 +1,8 @@
 import numpy as np
+import nltk
 import heapq
+import utils
+from scipy.spatial.distance import cosine
 
 class CoocMatrix:
     """
@@ -43,13 +46,17 @@ class CoocMatrix:
         None
         """
 
+        lemmatizer = nltk.stem.WordNetLemmatizer()
+
         window_verbs = []
         window_nouns = []
 
         for window in windows:  # Iterates over the windows
-            for (word, tag) in window: # Iterates over each tagged word inside the window
-                if tag.startswith('V') is True:  # If it is a verb store it on a dictionary and increase
-                    window_verbs.append(word)                                                #  the size of columns
+            for (word, tag) in window:  # Iterates over each tagged word inside the window
+                if tag.startswith('V') is True:  # If it is a verb store it on a dictionary and increase the size of
+                    # columns
+                    word = lemmatizer.lemmatize(word, 'v')
+                    window_verbs.append(word)
                     if word not in self.verb_columns:
                         self.verb_columns[word] = self.verb_columns_size
                         self.verb_columns_size += 1
@@ -70,7 +77,7 @@ class CoocMatrix:
                     i = self.noun_rows.get(noun)
                     self.matrix[i][j] += 1
 
-            window_verbs.clear() # Clear temp lists for next iteration
+            window_verbs.clear()  # Clear temp lists for next iteration
             window_nouns.clear()
 
 
@@ -91,33 +98,37 @@ class CoocMatrix:
         """
         # Laplace smoothing
         if improver is 1:
-            np.add(cooc_matrix, constant)
+            temp_matrix = np.add(cooc_matrix, constant)
+        else:
+            temp_matrix = cooc_matrix
 
         # Sum all the elements in the matrix
-        total = cooc_matrix.sum()
+        total = temp_matrix.sum()
         # Creates an array with each element containing the sum of one column
-        total_per_column = cooc_matrix.sum(axis=0, dtype='int')
+        total_per_column = temp_matrix.sum(axis=0, dtype='float')
         # Creates an array with each element containing the sum of one row
-        total_per_line = cooc_matrix.sum(axis=1, dtype='int')
+        total_per_line = temp_matrix.sum(axis=1, dtype='float')
 
         # Get the matrix dimensions
-        (maxi, maxj) = cooc_matrix.shape
+        (maxi, maxj) = temp_matrix.shape
 
         # Iterates over all the matrix
         for i in range(maxi):
             for j in range(maxj):
 
                 # Calculates the PMI's constants
-                pcw = cooc_matrix[i][j]/total
+                pcw = temp_matrix[i][j]/total
                 pw = total_per_line[i]/total
                 pc = total_per_column[j]/total
 
                 # Checks for division per zero
                 if pw*pc == 0:
-                    cooc_matrix[i][j] = 0
+                    temp_matrix[i][j] = 0
                 else:
                     # Calculates the new wighted value
-                    cooc_matrix[i][j] = np.maximum(np.log2(pcw/(pw*pc)), 0)
+                    temp_matrix[i][j] = np.maximum(np.log2(pcw/(pw*pc)), 0)
+
+        return temp_matrix
 
 
     def filter_coocmatrix(self):
@@ -171,8 +182,6 @@ class CoocMatrix:
                 verb_column_idxs[two_index[1]] = 0
                 self.filtered_verb_columns_size += 1
 
-        new_verb_columns = {}
-        new_noun_rows = {}
         k = 0
         self.filtered_matrix = np.zeros((self.filtered_noun_rows_size, self.filtered_verb_columns_size))
 
@@ -187,7 +196,7 @@ class CoocMatrix:
                 continue
             else:
                 #  This rebuilds the dictionaries that relate every noun with a row of the matrix
-                new_noun_rows[temp_dict_noun[i]] = k
+                self.filtered_noun_rows[temp_dict_noun[i]] = k
                 l = 0
             for j in range(self.verb_columns_size):
                 if j not in verb_column_idxs:
@@ -195,6 +204,49 @@ class CoocMatrix:
                 else:
                     self.filtered_matrix[k][l] = self.matrix[i][j]
                     #  This rebuilds the dictionaries that relate every verb with a column of the matrix
-                    new_verb_columns[temp_dict_verb[j]] = l
+                    self.filtered_verb_columns[temp_dict_verb[j]] = l
                     l += 1
             k += 1
+
+
+    def cosine_vector_sim(self, noun1, noun2, with_filtered_matrix = True):
+        """
+        This function calculates the cosine similarity between two word vectors
+        :param noun1: The name of a noun that belongs to the co-occurrence matrix to be compared
+        :param noun2: The name of the other noun to be compared
+        :param with_filtered_matrix: Boolean that tells in which matrix the cosine will be calculated
+        :return: The result of the cosine difference
+        """
+        row_noun1 = self.filtered_noun_rows[noun1]
+        row_noun2 = self.filtered_noun_rows[noun2]
+
+        if with_filtered_matrix:
+            curr_matrix = self.filtered_matrix
+        else:
+            curr_matrix = self.matrix
+
+        row1 = curr_matrix[row_noun1]
+        row2 = curr_matrix[row_noun2]
+
+        return 1 - cosine(row1, row2)
+
+
+    def plot_two_word_vectors(self, noun1_name, noun2_name, verb1_name, verb2_name, with_filtered_matrix = True):
+
+        if with_filtered_matrix:
+            curr_matrix = self.filtered_matrix
+            curr_noun_dict = self.filtered_noun_rows
+            curr_verb_dict = self.filtered_verb_columns
+        else:
+            curr_matrix = self.matrix
+            curr_noun_dict = self.noun_rows
+            curr_verb_dict = self.verb_columns
+
+        vector_1 = [curr_matrix[curr_noun_dict[noun1_name]][curr_verb_dict[verb1_name]],
+                    curr_matrix[curr_noun_dict[noun1_name]][curr_verb_dict[verb2_name]]]
+
+        vector_2 = [curr_matrix[curr_noun_dict[noun2_name]][curr_verb_dict[verb1_name]],
+                    curr_matrix[curr_noun_dict[noun2_name]][curr_verb_dict[verb2_name]]]
+
+        utils.plot_vectors(vector_1, vector_2, noun1_name, noun2_name, verb1_name, verb2_name)
+

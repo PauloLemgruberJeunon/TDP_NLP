@@ -1,36 +1,48 @@
 import nltk
 from nltk.tag.stanford import CoreNLPPOSTagger
-# import matplotlib.pyplot as plt
 import matrixutils as mu
 import utils
 
 def main():
-    workbook = utils.create_workbook('test.xlsx')
-    worksheet = utils.get_new_worksheet('cooc_matrix', workbook)
+    workbook = utils.create_workbook('test-lemma.xlsx')
+    worksheet = utils.get_new_worksheet('cooc_matrix_filtered.xlsx', workbook)
+    worksheet2 = utils.get_new_worksheet('cooc_matrix_full.xlsx', workbook)
 
+    file = open('pdfToTxt.txt', 'r')
+    raw_text = file.read()
+    raw_text = raw_text.lower()
 
-    utils.close_workbook(workbook)
-
-    raw = nltk.corpus.gutenberg.raw('melville-moby_dick.txt')
-    raw = raw.lower()  # Makes the text
-
-    tokens = nltk.tokenize.RegexpTokenizer(r'\w+').tokenize(raw)
-    tokens = tokens[30:6000]
+    tokens = nltk.tokenize.RegexpTokenizer(r'\w+').tokenize(raw_text)
+    tokens = tokens[4:6000]
 
     tagger = CoreNLPPOSTagger(url='http://localhost:9000')
 
     tagged_text = tagger.tag(tokens)
 
+    f2 = open('tagged_text.txt', 'w')
+    for (word, tag) in tagged_text:
+        f2.write(word + ' -> ' + tag + '\n')
+
+    f2.close()
+
     windows = utils.tokens_to_windows(tagged_text, 14)
 
     cooc_matrix = mu.CoocMatrix(windows)
 
-    mu.CoocMatrix.calc_ppmi(cooc_matrix.filtered_matrix, 0)
+    cooc_matrix.filtered_matrix = mu.CoocMatrix.calc_ppmi(cooc_matrix.filtered_matrix, 1, 0.5)
+    cooc_matrix.matrix = mu.CoocMatrix.calc_ppmi(cooc_matrix.matrix, 1, 0.5)
 
-    print(cooc_matrix.filtered_matrix)
-
-    utils.write_cooc_matrix(cooc_matrix.filtered_noun_rows,cooc_matrix.filtered_verb_columns, cooc_matrix.filtered_matrix,
+    utils.write_cooc_matrix(utils.invert_dictionary(cooc_matrix.filtered_noun_rows),
+                            utils.invert_dictionary(cooc_matrix.filtered_verb_columns), cooc_matrix.filtered_matrix,
                             worksheet)
+
+    utils.write_cooc_matrix(utils.invert_dictionary(cooc_matrix.noun_rows),
+                            utils.invert_dictionary(cooc_matrix.verb_columns), cooc_matrix.matrix,
+                            worksheet2)
+
+    utils.close_workbook(workbook)
+
+    cooc_matrix.plot_two_word_vectors('needs', 'customers', 'meet', 'be')
 
     quit()
 
