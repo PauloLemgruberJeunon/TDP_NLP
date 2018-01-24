@@ -242,11 +242,15 @@ class CoocMatrix:
             curr_noun_dict = self.noun_rows
             curr_verb_dict = self.verb_columns
 
-        vector_1 = [curr_matrix[curr_noun_dict[noun1_name]][curr_verb_dict[verb1_name]],
-                    curr_matrix[curr_noun_dict[noun1_name]][curr_verb_dict[verb2_name]]]
+        try:
+            vector_1 = [curr_matrix[curr_noun_dict[noun1_name]][curr_verb_dict[verb1_name]],
+                        curr_matrix[curr_noun_dict[noun1_name]][curr_verb_dict[verb2_name]]]
 
-        vector_2 = [curr_matrix[curr_noun_dict[noun2_name]][curr_verb_dict[verb1_name]],
-                    curr_matrix[curr_noun_dict[noun2_name]][curr_verb_dict[verb2_name]]]
+            vector_2 = [curr_matrix[curr_noun_dict[noun2_name]][curr_verb_dict[verb1_name]],
+                        curr_matrix[curr_noun_dict[noun2_name]][curr_verb_dict[verb2_name]]]
+        except:
+            return False
 
         utils.plot_vectors(vector_1, vector_2, noun1_name, noun2_name, verb1_name, verb2_name)
+        return True
 

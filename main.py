@@ -3,7 +3,7 @@ from nltk.tag.stanford import CoreNLPPOSTagger
 import matrixutils as mu
 import utils
 from tkinter import *
-from wordvectorsgui import vector_draw_gui
+from wordvectorsgui import VectorDrawGui
 
 def main():
     workbook = utils.create_workbook('test-lemma.xlsx')
@@ -45,7 +45,7 @@ def main():
     utils.close_workbook(workbook)
 
     root = Tk()
-    vec_gui = vector_draw_gui(root, cooc_matrix)
+    vec_gui = VectorDrawGui(root, cooc_matrix)
     root.mainloop()
 
 if __name__ == "__main__":
