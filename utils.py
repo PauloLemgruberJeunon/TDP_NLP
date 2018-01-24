@@ -115,16 +115,17 @@ def invert_dictionary(dictionary):
 
 
 def plot_vectors(vec1_coord, vec2_coord, vec1_name, vec2_name, verb1_name, verb2_name):
+    plt.gcf().clear()
     vec1_module = np.sqrt(np.power(vec1_coord[0], 2) + np.power(vec1_coord[1], 2))
     vec2_module = np.sqrt(np.power(vec2_coord[0], 2) + (np.power(vec2_coord[1], 2)))
     plt.quiver([0, 0], [0, 0], [vec1_coord[0]/vec1_module, vec2_coord[0]/vec2_module],
                [vec1_coord[1]/vec1_module, vec2_coord[1]/vec2_module], color=['r', 'g'], angles='xy',
                scale_units='xy', scale=1)
     plt.axis([0, 1, 0, 1])
-
     lgd_red = mpatches.Patch(color='red', label=vec1_name)
     lgd_green = mpatches.Patch(color='green', label=vec2_name)
     plt.legend(handles=[lgd_red, lgd_green])
     plt.xlabel(verb1_name)
     plt.ylabel(verb2_name)
-    plt.show()
+    plt.show(False)
+

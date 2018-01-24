@@ -1,96 +1,125 @@
-import nltk
-import utils
-from nltk.tag.stanford import CoreNLPPOSTagger
-
-#*******************************************************************************************
-
-# tagged_text = nltk.corpus.treebank.tagged_sents()
-# tagged_text = tagged_text[0:150]
-
-a = [1,2,3]
-a.pop()
-# raw = nltk.corpus.gutenberg.raw('melville-moby_dick.txt')
-# raw = raw[30:40000]
-sents = nltk.corpus.treebank.tagged_sents()
-
-i = 0
-filtered_sents = []
-while i < len(sents):
-    j = 0
-    while j < len(sents[i]):
-        if sents[i][j][1] == '-NONE-':
-            # print('NONE')
-            del sents[i][j]
-            j -= 1
-        elif sents[i][j][0].startswith('*'):
-            del sents[i][j]
-            j -= 1
-        elif sents[i][j][0] == '1\/2':
-            del sents[i][j]
-            j -= 1
-        j += 1
-    filtered_sents.append(sents[i])
-    i += 1
-
-filtered_sents = filtered_sents[0:400]
-
-tokens = []
-for sent in filtered_sents:
-    for word,tag in sent:
-        tokens.append(word)
-
-tagged_sents = CoreNLPPOSTagger().tag(tokens)
-
-t = 0
-r = 0
-i = 0
-for sent in filtered_sents:
-    for word,tag in sent:
-        if word != tagged_sents[i][0]:
-            print(i)
-            print(tagged_sents[i][0])
-            print(word)
-            quit()
-        if tag == tagged_sents[i][1]:
-            r += 1
-        t += 1
-        i += 1
-
-print(r/t)
-
-
-
-# for sent in sents:
-#     i = 0
-#     for (word,tag) in sent:
-#         if tag == '-NONE-':
-#             sent.remove(i)
+# from tkinter import *
+# import random
 #
-#         i =+ 1
+# class GuessingGame:
+#     def __init__(self, master):
+#         self.master = master
+#         master.title("Guessing Game")
+#
+#         self.secret_number = random.randint(1, 100)
+#         self.guess = None
+#         self.num_guesses = 0
+#
+#         self.message = "Guess a number from 1 to 100"
+#         self.label_text = StringVar()
+#         self.label_text.set(self.message)
+#         self.label = Label(master, textvariable=self.label_text)
+#
+#         vcmd = master.register(self.validate) # we have to wrap the command
+#         self.entry = Entry(master, validate="key", validatecommand=(vcmd, '%P'))
+#
+#         self.guess_button = Button(master, text="Guess", command=self.guess_number)
+#         self.reset_button = Button(master, text="Play again", command=self.reset, state=DISABLED)
+#
+#         self.label.grid(row=0, column=0, columnspan=2, sticky=W+E)
+#         self.entry.grid(row=1, column=0, columnspan=2, sticky=W+E)
+#         self.guess_button.grid(row=2, column=0)
+#         self.reset_button.grid(row=2, column=1)
+#
+#     def validate(self, new_text):
+#         if not new_text: # the field is being cleared
+#             self.guess = None
+#             return True
+#
+#         try:
+#             guess = int(new_text)
+#             if 1 <= guess <= 100:
+#                 self.guess = guess
+#                 return True
+#             else:
+#                 return False
+#         except ValueError:
+#             return False
+#
+#     def guess_number(self):
+#         self.num_guesses += 1
+#
+#         if self.guess is None:
+#             self.message = "Guess a number from 1 to 100"
+#
+#         elif self.guess == self.secret_number:
+#             suffix = '' if self.num_guesses == 1 else 'es'
+#             self.message = "Congratulations! You guessed the number after %d guess%s." % (self.num_guesses, suffix)
+#             self.guess_button.configure(state=DISABLED)
+#             self.reset_button.configure(state=NORMAL)
+#
+#         elif self.guess < self.secret_number:
+#             self.message = "Too low! Guess again!"
+#         else:
+#             self.message = "Too high! Guess again!"
+#
+#         self.label_text.set(self.message)
+#
+#     def reset(self):
+#         self.entry.delete(0, END)
+#         self.secret_number = random.randint(1, 100)
+#         self.guess = 0
+#         self.num_guesses = 0
+#
+#         self.message = "Guess a number from 1 to 100"
+#         self.label_text.set(self.message)
+#
+#         self.guess_button.configure(state=NORMAL)
+#         self.reset_button.configure(state=DISABLED)
+#
+# root = Tk()
+# my_gui = GuessingGame(root)
+# root.mainloop()
 
-# tokens = []
-# tok_sent = []
-# for sents in tagged_text:
-#     for (word,tag) in sents:
-#         tok_sent.append(word)
-#     tokens.append(tok_sent.copy())
-#     tok_sent.clear()
+from openpyxl.reader import *
+from tkinter import *
 
-# tagger = CoreNLPPOSTagger(url='http://localhost:9000')
+class myWindow:
+    def __init__(self, master):
+        self.master = master
+        master.title('Test windows for nlp proj')
 
-# tagged_words = []
-# tagged_sent = []
-# print('To tag sents = ' + str(len(tokens)))
-# for i in range(0,len(tokens)):
-#     tagged_sent = tagger.tag(tokens[i])
-#     tagged_words.append(tagged_sent)
-#     print('[Tagging] Current stage = ' + str(i))
+        self.currFrame = Frame(master, relief=RAISED)
+        self.currFrame.grid()
 
+        msg_var = StringVar()
+        msg_var.set('Load or create new cooc_matrix?')
+        label = Label(self.currFrame, textvariable=msg_var)
 
-# print('Accuracy: ' + str(measurePOSTagAccuracy(tagged_text, tagged_words)))
+        load_button = Button(self.currFrame, text='Load', command=self.load_button)
+        create_button = Button(self.currFrame, text='Create', command=self.create_button)
 
-# quit()
+        label.grid(row=0, column=0, columnspan=2)
+        load_button.grid(row=1, column=0, columnspan=1)
+        create_button.grid(row=1, column=1, columnspan=1)
 
+    def new_frame(self):
+        self.currFrame.destroy()
+        self.currFrame = Frame(self.master, relief=RAISED)
+        self.currFrame.grid()
 
+    def create_button(self):
+        self.new_frame()
 
-#verb_fd = nltk.FreqDist(word for (word, tag) in tagged_words if tag[0] ==
+        label = Label(self.master, text='Enter the name of the new xlsx workbook')
+        label2 = Label(self.master, text='Enter the name of the input txt file')
+
+        self.new_workbook_entry = Entry(self.master)
+        self.input_txt_file = Entry(self.master)
+
+        label.grid()
+        self.new_workbook_entry.grid()
+        label2.grid()
+        self.input_txt_file.grid()
+
+    def load_button(self):
+        self.new_frame()
+
+root = Tk()
+gui = myWindow(root)
+root.mainloop()

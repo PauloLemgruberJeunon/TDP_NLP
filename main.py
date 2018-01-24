@@ -2,13 +2,15 @@ import nltk
 from nltk.tag.stanford import CoreNLPPOSTagger
 import matrixutils as mu
 import utils
+from tkinter import *
+from wordvectorsgui import vector_draw_gui
 
 def main():
     workbook = utils.create_workbook('test-lemma.xlsx')
     worksheet = utils.get_new_worksheet('cooc_matrix_filtered.xlsx', workbook)
     worksheet2 = utils.get_new_worksheet('cooc_matrix_full.xlsx', workbook)
 
-    file = open('pdfToTxt.txt', 'r')
+    file = open('pdfToTxt.txt', 'r', encoding="utf8")
     raw_text = file.read()
     raw_text = raw_text.lower()
 
@@ -19,7 +21,7 @@ def main():
 
     tagged_text = tagger.tag(tokens)
 
-    f2 = open('tagged_text.txt', 'w')
+    f2 = open('tagged_text.txt', 'w', encoding="utf8")
     for (word, tag) in tagged_text:
         f2.write(word + ' -> ' + tag + '\n')
 
@@ -42,10 +44,9 @@ def main():
 
     utils.close_workbook(workbook)
 
-    cooc_matrix.plot_two_word_vectors('needs', 'customers', 'meet', 'be')
-
-    quit()
-
+    root = Tk()
+    vec_gui = vector_draw_gui(root, cooc_matrix)
+    root.mainloop()
 
 if __name__ == "__main__":
     main()
