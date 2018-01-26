@@ -6,8 +6,11 @@ import xlsxwriter
 import numpy as np
 from matplotlib import pyplot as plt
 import matplotlib.patches as mpatches
+from openpyxl import load_workbook
+from openpyxl.utils import coordinate_from_string, column_index_from_string
 
-def measurePOSTagAccuracy(tagged_sents, tagged_words):
+
+def measure_postag_accuracy(tagged_sents, tagged_words):
     """
     Function used to measure the accuracy of a POSTagger (does not handle different types of tag standards)
     Parameters
@@ -34,9 +37,9 @@ def measurePOSTagAccuracy(tagged_sents, tagged_words):
             local_count += 1
             if tagged_sents[i][j][1] == '-NONE-':
                 while tagged_sents[i][j][1] == '-NONE-':
-                    j+=1
+                    j += 1
                 while tagged_sents[i][j][0] != tagged_words[i][k][0]:
-                    k+=1
+                    k += 1
             if tagged_sents[i][j][1] == tagged_words[i][k][1]:
                 right_count += 1
                 local_right_count += 1
@@ -99,12 +102,12 @@ def tokens_to_windows(tokens, window_size):
     windows = []
     while i < tagged_text_size:
         temp_list.append(tokens[i])
-        if (i + 1) % 14 == 0:
+        if (i + 1) % window_size == 0:
             windows.append(temp_list.copy())
             temp_list.clear()
         i += 1
 
-    if tagged_text_size % 14 != 0:
+    if tagged_text_size % window_size != 0:
         windows.append(temp_list.copy())
 
     return windows
@@ -129,3 +132,72 @@ def plot_vectors(vec1_coord, vec2_coord, vec1_name, vec2_name, verb1_name, verb2
     plt.ylabel(verb2_name)
     plt.show(False)
 
+
+def get_column_names(rows, verb_columns):
+
+    counter = 0
+    for row in rows:
+        for cell in row:
+            value = cell.value
+            if value is not None:
+                verb_columns[value] = counter
+                counter += 1
+        break
+
+
+def complete_the_loading(rows, noun_rows, matrix):
+    counter = 0
+    i = 0
+    for row in rows:
+        row_jump = True
+        j = 0
+
+        for cell in row:
+            value = cell.value
+            if row_jump:
+                noun_rows[value] = counter
+                counter += 1
+                row_jump = False
+            else:
+                matrix[i][j] = value
+                j += 1
+
+        i += 1
+
+
+def load_from_wb(workbook_name):
+    wb = load_workbook(filename=workbook_name, read_only=True)
+    ws = wb['cooc_matrix_full.xlsx']
+    ws_filtered = wb['cooc_matrix_filtered.xlsx']
+
+    rows = ws.rows
+    matrix_dim = ws.calculate_dimension().split(':')
+    rows_count = coordinate_from_string(matrix_dim[1])[1] - 1
+    column_count = column_index_from_string(coordinate_from_string(matrix_dim[1])[0]) - 1
+
+    matrix = np.empty((rows_count, column_count))
+
+    noun_rows = {}
+    verb_columns = {}
+
+    get_column_names(rows, verb_columns)
+    complete_the_loading(rows, noun_rows, matrix)
+
+    rows = ws_filtered.rows
+    matrix_dim = ws_filtered.calculate_dimension().split(':')
+    rows_count = coordinate_from_string(matrix_dim[1])[1] - 1
+    column_count = column_index_from_string(coordinate_from_string(matrix_dim[1])[0]) - 1
+
+    filtered_matrix = np.empty((rows_count, column_count))
+
+    filtered_noun_rows = {}
+    filtered_verb_columns = {}
+
+    get_column_names(rows, filtered_verb_columns)
+    complete_the_loading(rows, filtered_noun_rows, filtered_matrix)
+
+    content = {'matrix': matrix, 'noun_rows': noun_rows, 'verb_columns': verb_columns,
+               'filtered_matrix': filtered_matrix, 'filtered_noun_rows': filtered_noun_rows,
+               'filtered_verb_columns': filtered_verb_columns}
+
+    return content

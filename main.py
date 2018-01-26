@@ -5,52 +5,66 @@ import utils
 from tkinter import *
 from wordvectorsgui import VectorDrawGui
 
+
+load_matrix = False
+
+
 def main():
-    workbook = utils.create_workbook('test-lemma.xlsx')
-    worksheet = utils.get_new_worksheet('cooc_matrix_filtered.xlsx', workbook)
-    worksheet2 = utils.get_new_worksheet('cooc_matrix_full.xlsx', workbook)
 
-    file = open('pdfToTxt.txt', 'r', encoding="utf8")
-    raw_text = file.read()
-    raw_text = raw_text.lower()
+    if load_matrix is not True:
+        workbook = utils.create_workbook('test-lemma-42.xlsx')
+        worksheet = utils.get_new_worksheet('cooc_matrix_filtered', workbook)
+        worksheet2 = utils.get_new_worksheet('cooc_matrix_full', workbook)
+        test_worksheet = utils.get_new_worksheet('test', workbook)
 
-    tokens = nltk.tokenize.RegexpTokenizer(r'\w+').tokenize(raw_text)
-    tokens = tokens[4:6000]
+        file = open('pdfToTxt.txt', 'r', encoding="utf8")
+        raw_text = file.read()
+        raw_text = raw_text.lower()
 
-    tagger = CoreNLPPOSTagger(url='http://localhost:9000')
+        tokens = nltk.tokenize.RegexpTokenizer(r'\w+').tokenize(raw_text)
+        tokens = tokens[4:6000]
 
-    tagged_text = tagger.tag(tokens)
+        tagger = CoreNLPPOSTagger(url='http://localhost:9000')
 
-    f2 = open('tagged_text.txt', 'w', encoding="utf8")
-    for (word, tag) in tagged_text:
-        f2.write(word + ' -> ' + tag + '\n')
+        tagged_text = tagger.tag(tokens)
 
-    f2.close()
+        f2 = open('tagged_text.txt', 'w', encoding="utf8")
+        for (word, tag) in tagged_text:
+            f2.write(word + ' -> ' + tag + '\n')
 
-    windows = utils.tokens_to_windows(tagged_text, 14)
+        f2.close()
 
-    cooc_matrix = mu.CoocMatrix(windows)
+        windows = utils.tokens_to_windows(tagged_text, 14)
 
-    cooc_matrix.filtered_matrix = mu.CoocMatrix.calc_ppmi(cooc_matrix.filtered_matrix, 1, 0.5)
-    cooc_matrix.matrix = mu.CoocMatrix.calc_ppmi(cooc_matrix.matrix, 1, 0.5)
+        cooc_matrix = mu.CoocMatrix(windows)
 
-    utils.write_cooc_matrix(utils.invert_dictionary(cooc_matrix.filtered_noun_rows),
-                            utils.invert_dictionary(cooc_matrix.filtered_verb_columns), cooc_matrix.filtered_matrix,
-                            worksheet)
+        utils.write_cooc_matrix(utils.invert_dictionary(cooc_matrix.filtered_noun_rows),
+                                utils.invert_dictionary(cooc_matrix.filtered_verb_columns), cooc_matrix.filtered_matrix,
+                                test_worksheet)
 
-    utils.write_cooc_matrix(utils.invert_dictionary(cooc_matrix.noun_rows),
-                            utils.invert_dictionary(cooc_matrix.verb_columns), cooc_matrix.matrix,
-                            worksheet2)
+        cooc_matrix.filtered_matrix = mu.CoocMatrix.calc_ppmi(cooc_matrix.filtered_matrix, 1, 0.5)
+        cooc_matrix.matrix = mu.CoocMatrix.calc_ppmi(cooc_matrix.matrix, 1, 0.5)
 
-    utils.close_workbook(workbook)
+        utils.write_cooc_matrix(utils.invert_dictionary(cooc_matrix.filtered_noun_rows),
+                                utils.invert_dictionary(cooc_matrix.filtered_verb_columns), cooc_matrix.filtered_matrix,
+                                worksheet)
+
+        utils.write_cooc_matrix(utils.invert_dictionary(cooc_matrix.noun_rows),
+                                utils.invert_dictionary(cooc_matrix.verb_columns), cooc_matrix.matrix,
+                                worksheet2)
+
+        utils.close_workbook(workbook)
+    else:
+        content = utils.load_from_wb('test-lemma.xlsx')
+        cooc_matrix = mu.CoocMatrix(build_matrix=False, content=content)
 
     root = Tk()
     vec_gui = VectorDrawGui(root, cooc_matrix)
     root.mainloop()
 
+
 if __name__ == "__main__":
     main()
-
 
 # print(new_noun_rows_size)
 # print(noun_rows_size)

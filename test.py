@@ -1,125 +1,15 @@
-# from tkinter import *
-# import random
-#
-# class GuessingGame:
-#     def __init__(self, master):
-#         self.master = master
-#         master.title("Guessing Game")
-#
-#         self.secret_number = random.randint(1, 100)
-#         self.guess = None
-#         self.num_guesses = 0
-#
-#         self.message = "Guess a number from 1 to 100"
-#         self.label_text = StringVar()
-#         self.label_text.set(self.message)
-#         self.label = Label(master, textvariable=self.label_text)
-#
-#         vcmd = master.register(self.validate) # we have to wrap the command
-#         self.entry = Entry(master, validate="key", validatecommand=(vcmd, '%P'))
-#
-#         self.guess_button = Button(master, text="Guess", command=self.guess_number)
-#         self.reset_button = Button(master, text="Play again", command=self.reset, state=DISABLED)
-#
-#         self.label.grid(row=0, column=0, columnspan=2, sticky=W+E)
-#         self.entry.grid(row=1, column=0, columnspan=2, sticky=W+E)
-#         self.guess_button.grid(row=2, column=0)
-#         self.reset_button.grid(row=2, column=1)
-#
-#     def validate(self, new_text):
-#         if not new_text: # the field is being cleared
-#             self.guess = None
-#             return True
-#
-#         try:
-#             guess = int(new_text)
-#             if 1 <= guess <= 100:
-#                 self.guess = guess
-#                 return True
-#             else:
-#                 return False
-#         except ValueError:
-#             return False
-#
-#     def guess_number(self):
-#         self.num_guesses += 1
-#
-#         if self.guess is None:
-#             self.message = "Guess a number from 1 to 100"
-#
-#         elif self.guess == self.secret_number:
-#             suffix = '' if self.num_guesses == 1 else 'es'
-#             self.message = "Congratulations! You guessed the number after %d guess%s." % (self.num_guesses, suffix)
-#             self.guess_button.configure(state=DISABLED)
-#             self.reset_button.configure(state=NORMAL)
-#
-#         elif self.guess < self.secret_number:
-#             self.message = "Too low! Guess again!"
-#         else:
-#             self.message = "Too high! Guess again!"
-#
-#         self.label_text.set(self.message)
-#
-#     def reset(self):
-#         self.entry.delete(0, END)
-#         self.secret_number = random.randint(1, 100)
-#         self.guess = 0
-#         self.num_guesses = 0
-#
-#         self.message = "Guess a number from 1 to 100"
-#         self.label_text.set(self.message)
-#
-#         self.guess_button.configure(state=NORMAL)
-#         self.reset_button.configure(state=DISABLED)
-#
-# root = Tk()
-# my_gui = GuessingGame(root)
-# root.mainloop()
+import numpy as np
 
-from openpyxl.reader import *
-from tkinter import *
+a = np.array([[1,2,3],[4,5,6],[0,0,0],[5,2,3],[0,0,1],[0,0,0]])
 
-class myWindow:
-    def __init__(self, master):
-        self.master = master
-        master.title('Test windows for nlp proj')
+print(a)
 
-        self.currFrame = Frame(master, relief=RAISED)
-        self.currFrame.grid()
+i = 0
+while i < a.shape[0]:
+    if np.sum(a[i]) == 0:
+        a = np.delete(a,i,0)
+        i -= 1
 
-        msg_var = StringVar()
-        msg_var.set('Load or create new cooc_matrix?')
-        label = Label(self.currFrame, textvariable=msg_var)
+    i += 1
 
-        load_button = Button(self.currFrame, text='Load', command=self.load_button)
-        create_button = Button(self.currFrame, text='Create', command=self.create_button)
-
-        label.grid(row=0, column=0, columnspan=2)
-        load_button.grid(row=1, column=0, columnspan=1)
-        create_button.grid(row=1, column=1, columnspan=1)
-
-    def new_frame(self):
-        self.currFrame.destroy()
-        self.currFrame = Frame(self.master, relief=RAISED)
-        self.currFrame.grid()
-
-    def create_button(self):
-        self.new_frame()
-
-        label = Label(self.master, text='Enter the name of the new xlsx workbook')
-        label2 = Label(self.master, text='Enter the name of the input txt file')
-
-        self.new_workbook_entry = Entry(self.master)
-        self.input_txt_file = Entry(self.master)
-
-        label.grid()
-        self.new_workbook_entry.grid()
-        label2.grid()
-        self.input_txt_file.grid()
-
-    def load_button(self):
-        self.new_frame()
-
-root = Tk()
-gui = myWindow(root)
-root.mainloop()
+print(a)

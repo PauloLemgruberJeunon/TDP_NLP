@@ -4,12 +4,20 @@ import heapq
 import utils
 from scipy.spatial.distance import cosine
 
+verbs_to_keep = {'prepare': 1, 'synthesize': 1, 'generate': 1, 'define': 1, 'illustrate': 1, 'classify': 1,
+                'develop': 1, 'name': 1, 'defend': 1, 'explain': 1, 'describe': 1, 'criticize': 1,
+                'test': 1, 'review': 1, 'order': 1, 'analyze': 1, 'choose': 1, 'create': 1, 'combine': 1, 'infer': 1,
+                'extend': 1, 'modify': 1, 'compare': 1, 'indicate': 1, 'distinguish': 1, 'interpret': 1, 'justify': 1,
+                'identify': 1, 'list': 1, 'evaluate': 1, 'calculate': 1, 'design': 1, 'recognize': 1, 'model': 1,
+                'discuss': 1, 'practice': 1, 'apply': 1, 'estimate': 1, 'compute': 1, 'solve': 1, 'conclude': 1,
+                'predict': 1}
+
 class CoocMatrix:
     """
     Class responsible to handle the co-occurrence matrix operations
     """
 
-    def __init__(self, windows):
+    def __init__(self, windows=None, build_matrix=True, content=None):
         #  Dictionary have a noun for key and a row index for value
         self.noun_rows = {}
         self.noun_rows_size = 0
@@ -28,9 +36,22 @@ class CoocMatrix:
         self.filtered_verb_columns = {}
         self.filtered_noun_rows = {}
 
-        #  Functions called to calculate the co-occurrence matrix and it's filtered version
-        self.create_coocmatrix(windows)
-        self.filter_coocmatrix()
+        if build_matrix:
+            #  Functions called to calculate the co-occurrence matrix and it's filtered version
+            self.create_coocmatrix(windows)
+            self.filter_coocmatrix()
+        else:
+            self.matrix = content['matrix']
+            self.verb_columns = content['verb_columns']
+            self.verb_columns_size = self.matrix.shape[1]
+            self.noun_rows = content['noun_rows']
+            self.noun_rows_size = self.matrix.shape[0]
+
+            self.filtered_matrix = content['filtered_matrix']
+            self.filtered_verb_columns = content['filtered_verb_columns']
+            self.filtered_verb_columns_size = self.filtered_matrix.shape[1]
+            self.filtered_noun_rows = content['filtered_noun_rows']
+            self.filtered_noun_rows_size = self.filtered_matrix.shape[0]
 
 
     def create_coocmatrix(self, windows):
@@ -52,18 +73,34 @@ class CoocMatrix:
         window_nouns = []
 
         for window in windows:  # Iterates over the windows
+            check_window = list(window)
+
+            valid_window = False
+            for (word, tag) in check_window:
+                if tag.startswith('V'):
+                    word = lemmatizer.lemmatize(word, 'v')
+                    if word in verbs_to_keep:
+                        valid_window = True
+                        break
+
+            if not valid_window:
+                continue
+
             for (word, tag) in window:  # Iterates over each tagged word inside the window
-                if tag.startswith('V') is True:  # If it is a verb store it on a dictionary and increase the size of
+                if tag.startswith('V'):  # If it is a verb store it on a dictionary and increase the size of
                     # columns
                     word = lemmatizer.lemmatize(word, 'v')
-                    window_verbs.append(word)
-                    if word not in self.verb_columns:
-                        self.verb_columns[word] = self.verb_columns_size
-                        self.verb_columns_size += 1
-                        if self.verb_columns_size > 2:
-                            self.matrix = np.lib.pad(self.matrix, ((0, 0), (0, 1)), 'constant', constant_values=0)
 
-                if tag.startswith('NN') is True:  # If it is a Noun do the same as the verbs, but increase the rows
+                    if word in verbs_to_keep:
+                        word = 'to ' + word
+                        window_verbs.append(word)
+                        if word not in self.verb_columns:
+                            self.verb_columns[word] = self.verb_columns_size
+                            self.verb_columns_size += 1
+                            if self.verb_columns_size > 2:
+                                self.matrix = np.lib.pad(self.matrix, ((0, 0), (0, 1)), 'constant', constant_values=0)
+
+                if tag.startswith('NN'):  # If it is a Noun do the same as the verbs, but increase the rows
                     window_nouns.append(word)
                     if word not in self.noun_rows:
                         self.noun_rows[word] = self.noun_rows_size
@@ -80,6 +117,20 @@ class CoocMatrix:
             window_verbs.clear()  # Clear temp lists for next iteration
             window_nouns.clear()
 
+        # temp_inv_noun_dict =  utils.invert_dictionary(self.noun_rows)
+
+        # i = 0
+        # while i < self.matrix.shape[0]:
+        #     if np.sum(self.matrix[i]) == 0:
+        #         self.matrix = np.delete(self.matrix,i,0)
+        #         del temp_inv_noun_dict[i]
+        #         i -= 1
+        #
+        #     i += 1
+        #
+        # self.noun_rows_size = self.matrix.shape[0]
+
+
 
     @staticmethod
     def calc_ppmi(cooc_matrix, improver, constant=0):
@@ -94,7 +145,7 @@ class CoocMatrix:
 
         Returns
         -------
-        None
+        temp_matrix
         """
         # Laplace smoothing
         if improver is 1:
@@ -248,9 +299,8 @@ class CoocMatrix:
 
             vector_2 = [curr_matrix[curr_noun_dict[noun2_name]][curr_verb_dict[verb1_name]],
                         curr_matrix[curr_noun_dict[noun2_name]][curr_verb_dict[verb2_name]]]
-        except:
+        except KeyError:
             return False
 
         utils.plot_vectors(vector_1, vector_2, noun1_name, noun2_name, verb1_name, verb2_name)
         return True
-
