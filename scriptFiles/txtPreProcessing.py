@@ -14,7 +14,7 @@ def complete_filter(input_file_name, output_discarded_words=False, encoding='utf
     output_dict = only_english_words(temp_text, output_discarded_words)
 
     for key in output_dict.keys():
-        output_file = open(key + '.txt', 'w', encoding=encoding)
+        output_file = open('..\\txtFiles\\' + key + '.txt', 'w', encoding=encoding)
         output_file.write(output_dict[key])
         output_file.close()
 
@@ -48,7 +48,7 @@ def treat_strange_symbols(txt_input):
 
 
 def main():
-    complete_filter('pdfToTxt.txt', True)
+    complete_filter('..\\txtFiles\\pdfToTxt.txt', True)
 
 
 if __name__ == '__main__':

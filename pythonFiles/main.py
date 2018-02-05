@@ -6,13 +6,13 @@ from tkinter import *
 from wordvectorsgui import VectorDrawGui
 
 
-load_matrix = False
+load_matrix = True
 
 
 def main():
 
     if load_matrix is not True:
-        workbook = utils.create_workbook('test-lemma-42.xlsx')
+        workbook = utils.create_workbook('..\\xlsxFiles\\test-lemma-42.xlsx')
         worksheet = utils.get_new_worksheet('cooc_matrix_filtered', workbook)
         worksheet2 = utils.get_new_worksheet('cooc_matrix_full', workbook)
         worksheet3 = utils.get_new_worksheet('soc_pmi_matrix', workbook)
@@ -20,7 +20,7 @@ def main():
 
         tagger = CoreNLPPOSTagger(url='http://localhost:9000')
 
-        file = open('pdfToTxt.txt', 'r', encoding="utf8")
+        file = open('..\\txtFiles\\pdfToTxt.txt', 'r', encoding="utf8")
         raw_text = file.read()
         raw_text = raw_text.lower()
 
@@ -73,7 +73,7 @@ def main():
         utils.close_workbook(workbook)
 
     else:
-        content = utils.load_from_wb('test-lemma.xlsx')
+        content = utils.load_from_wb('..\\xlsxFiles\\test-lemma.xlsx')
         cooc_matrix = mu.CoocMatrix(build_matrix=False, content=content)
 
     root = Tk()

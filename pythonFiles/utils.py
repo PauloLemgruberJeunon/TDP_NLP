@@ -212,6 +212,7 @@ def complete_the_loading(rows, noun_rows, matrix):
 
 def load_from_wb(workbook_name):
     wb = load_workbook(filename=workbook_name, read_only=True)
+    print('wb loaded')
     ws = wb['cooc_matrix_full']
     ws_filtered = wb['cooc_matrix_filtered']
 
@@ -222,11 +223,15 @@ def load_from_wb(workbook_name):
 
     matrix = np.empty((rows_count, column_count))
 
+    print('matrix allocated')
+
     noun_rows = {}
     verb_columns = {}
 
     get_column_names(rows, verb_columns)
+    print('get_column_names completed')
     complete_the_loading(rows, noun_rows, matrix)
+    print('complete_the_loading completed')
 
     rows = ws_filtered.rows
     matrix_dim = ws_filtered.calculate_dimension().split(':')
@@ -239,7 +244,9 @@ def load_from_wb(workbook_name):
     filtered_verb_columns = {}
 
     get_column_names(rows, filtered_verb_columns)
+    print('get_column_names completed 2')
     complete_the_loading(rows, filtered_noun_rows, filtered_matrix)
+    print('complete_the_loading completed 2')
 
     content = {'matrix': matrix, 'noun_rows': noun_rows, 'verb_columns': verb_columns,
                'filtered_matrix': filtered_matrix, 'filtered_noun_rows': filtered_noun_rows,
@@ -248,7 +255,7 @@ def load_from_wb(workbook_name):
     return content
 
 
-def save_tagged_words(tagged_text, file_name='tagged_text.txt', encoding='utf8'):
+def save_tagged_words(tagged_text, file_name='..\\txtFiles\\tagged_text.txt', encoding='utf8'):
     f2 = open(file_name, 'w', encoding=encoding)
     for (word, tag) in tagged_text:
         f2.write(word + ' -> ' + tag + '\n')
