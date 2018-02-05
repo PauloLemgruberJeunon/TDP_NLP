@@ -15,26 +15,33 @@ def main():
         workbook = utils.create_workbook('test-lemma-42.xlsx')
         worksheet = utils.get_new_worksheet('cooc_matrix_filtered', workbook)
         worksheet2 = utils.get_new_worksheet('cooc_matrix_full', workbook)
+        worksheet3 = utils.get_new_worksheet('soc_pmi_matrix', workbook)
         test_worksheet = utils.get_new_worksheet('test', workbook)
+
+        tagger = CoreNLPPOSTagger(url='http://localhost:9000')
 
         file = open('pdfToTxt.txt', 'r', encoding="utf8")
         raw_text = file.read()
         raw_text = raw_text.lower()
 
         tokens = nltk.tokenize.RegexpTokenizer(r'\w+').tokenize(raw_text)
-        tokens = tokens[4:6000]
 
-        tagger = CoreNLPPOSTagger(url='http://localhost:9000')
+        tagged_text = []
+        txt_size = len(tokens)
+        i = 0
+        while i < txt_size:
+            tokens_to_tag = tokens[i:i+6000]
+            i += 6001
+            if i+6000 >= txt_size:
+                tokens_to_tag = tokens[i:txt_size]
+                i = txt_size+1
 
-        tagged_text = tagger.tag(tokens)
+            tagged_text += tagger.tag(tokens_to_tag)
 
-        f2 = open('tagged_text.txt', 'w', encoding="utf8")
-        for (word, tag) in tagged_text:
-            f2.write(word + ' -> ' + tag + '\n')
+        if input('Want to save tagged text? (y/n)').lower() == 'y':
+            utils.save_tagged_words(tagged_text)
 
-        f2.close()
-
-        windows = utils.tokens_to_windows(tagged_text, 14)
+        windows = utils.tokens_to_centralized_windows(tagged_text, 15)
 
         cooc_matrix = mu.CoocMatrix(windows)
 
@@ -45,7 +52,13 @@ def main():
         cooc_matrix.filtered_matrix = mu.CoocMatrix.calc_ppmi(cooc_matrix.filtered_matrix, 1, 0.5)
         cooc_matrix.matrix = mu.CoocMatrix.calc_ppmi(cooc_matrix.matrix, 1, 0.5)
 
-        utils.write_cooc_matrix(utils.invert_dictionary(cooc_matrix.filtered_noun_rows),
+        cooc_matrix.is_pmi_calculated = True
+
+        cooc_matrix.create_soc_pmi_matrix(cooc_matrix.filtered_matrix)
+
+        inverted_filtered_noun_dict = utils.invert_dictionary(cooc_matrix.filtered_noun_rows)
+
+        utils.write_cooc_matrix(inverted_filtered_noun_dict,
                                 utils.invert_dictionary(cooc_matrix.filtered_verb_columns), cooc_matrix.filtered_matrix,
                                 worksheet)
 
@@ -53,7 +66,12 @@ def main():
                                 utils.invert_dictionary(cooc_matrix.verb_columns), cooc_matrix.matrix,
                                 worksheet2)
 
+        utils.write_cooc_matrix(inverted_filtered_noun_dict,
+                                inverted_filtered_noun_dict, cooc_matrix.soc_pmi_matrix,
+                                worksheet3)
+
         utils.close_workbook(workbook)
+
     else:
         content = utils.load_from_wb('test-lemma.xlsx')
         cooc_matrix = mu.CoocMatrix(build_matrix=False, content=content)
@@ -61,7 +79,6 @@ def main():
     root = Tk()
     vec_gui = VectorDrawGui(root, cooc_matrix)
     root.mainloop()
-
 
 if __name__ == "__main__":
     main()

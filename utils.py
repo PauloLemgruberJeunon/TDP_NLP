@@ -10,6 +10,15 @@ from openpyxl import load_workbook
 from openpyxl.utils import coordinate_from_string, column_index_from_string
 
 
+verbs_to_keep = {'prepare': 1, 'synthesize': 1, 'generate': 1, 'define': 1, 'illustrate': 1, 'classify': 1,
+                'develop': 1, 'name': 1, 'defend': 1, 'explain': 1, 'describe': 1, 'criticize': 1,
+                'test': 1, 'review': 1, 'order': 1, 'analyze': 1, 'choose': 1, 'create': 1, 'combine': 1, 'infer': 1,
+                'extend': 1, 'modify': 1, 'compare': 1, 'indicate': 1, 'distinguish': 1, 'interpret': 1, 'justify': 1,
+                'identify': 1, 'list': 1, 'evaluate': 1, 'calculate': 1, 'design': 1, 'recognize': 1, 'model': 1,
+                'discuss': 1, 'practice': 1, 'apply': 1, 'estimate': 1, 'compute': 1, 'solve': 1, 'conclude': 1,
+                'predict': 1}
+
+
 def measure_postag_accuracy(tagged_sents, tagged_words):
     """
     Function used to measure the accuracy of a POSTagger (does not handle different types of tag standards)
@@ -113,6 +122,42 @@ def tokens_to_windows(tokens, window_size):
     return windows
 
 
+def tokens_to_centralized_windows(tokens, window_size):
+    tagged_text_size = len(tokens)
+    windows = []
+
+    is_even = False
+    if window_size % 2 == 0:
+        is_even = True
+
+    begin_offset = window_size // 2
+    if is_even:
+        end_offset = (window_size // 2) - 1
+    else:
+        end_offset = (window_size // 2)
+
+    i = 0
+    while i < tagged_text_size:
+        if tokens[i][0] in verbs_to_keep:
+            if i - begin_offset < 0 or i + end_offset >= tagged_text_size:
+                if i - begin_offset < 0:
+                    start = 0
+                    end = i + end_offset
+                else:
+                    start = i - begin_offset
+                    end = tagged_text_size - 1
+            else:
+                start = i - begin_offset
+                end = i + end_offset
+
+            temp_list = tokens[start:end]
+            windows.append(temp_list.copy())
+
+        i += 1
+
+    return windows
+
+
 def invert_dictionary(dictionary):
     return dict(zip(dictionary.values(), dictionary.keys()))
 
@@ -167,8 +212,8 @@ def complete_the_loading(rows, noun_rows, matrix):
 
 def load_from_wb(workbook_name):
     wb = load_workbook(filename=workbook_name, read_only=True)
-    ws = wb['cooc_matrix_full.xlsx']
-    ws_filtered = wb['cooc_matrix_filtered.xlsx']
+    ws = wb['cooc_matrix_full']
+    ws_filtered = wb['cooc_matrix_filtered']
 
     rows = ws.rows
     matrix_dim = ws.calculate_dimension().split(':')
@@ -201,3 +246,14 @@ def load_from_wb(workbook_name):
                'filtered_verb_columns': filtered_verb_columns}
 
     return content
+
+
+def save_tagged_words(tagged_text, file_name='tagged_text.txt', encoding='utf8'):
+    f2 = open(file_name, 'w', encoding=encoding)
+    for (word, tag) in tagged_text:
+        f2.write(word + ' -> ' + tag + '\n')
+    f2.close()
+
+
+def pause():
+    input('Press enter to continue')

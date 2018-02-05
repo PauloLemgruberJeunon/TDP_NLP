@@ -4,13 +4,6 @@ import heapq
 import utils
 from scipy.spatial.distance import cosine
 
-verbs_to_keep = {'prepare': 1, 'synthesize': 1, 'generate': 1, 'define': 1, 'illustrate': 1, 'classify': 1,
-                'develop': 1, 'name': 1, 'defend': 1, 'explain': 1, 'describe': 1, 'criticize': 1,
-                'test': 1, 'review': 1, 'order': 1, 'analyze': 1, 'choose': 1, 'create': 1, 'combine': 1, 'infer': 1,
-                'extend': 1, 'modify': 1, 'compare': 1, 'indicate': 1, 'distinguish': 1, 'interpret': 1, 'justify': 1,
-                'identify': 1, 'list': 1, 'evaluate': 1, 'calculate': 1, 'design': 1, 'recognize': 1, 'model': 1,
-                'discuss': 1, 'practice': 1, 'apply': 1, 'estimate': 1, 'compute': 1, 'solve': 1, 'conclude': 1,
-                'predict': 1}
 
 class CoocMatrix:
     """
@@ -35,6 +28,9 @@ class CoocMatrix:
         self.filtered_noun_rows_size = 0
         self.filtered_verb_columns = {}
         self.filtered_noun_rows = {}
+
+        self.is_pmi_calculated = False
+        self.soc_pmi_matrix = None
 
         if build_matrix:
             #  Functions called to calculate the co-occurrence matrix and it's filtered version
@@ -79,7 +75,7 @@ class CoocMatrix:
             for (word, tag) in check_window:
                 if tag.startswith('V'):
                     word = lemmatizer.lemmatize(word, 'v')
-                    if word in verbs_to_keep:
+                    if word in utils.verbs_to_keep:
                         valid_window = True
                         break
 
@@ -91,7 +87,7 @@ class CoocMatrix:
                     # columns
                     word = lemmatizer.lemmatize(word, 'v')
 
-                    if word in verbs_to_keep:
+                    if word in utils.verbs_to_keep:
                         word = 'to ' + word
                         window_verbs.append(word)
                         if word not in self.verb_columns:
@@ -293,6 +289,9 @@ class CoocMatrix:
             curr_noun_dict = self.noun_rows
             curr_verb_dict = self.verb_columns
 
+        print(curr_noun_dict)
+        print(curr_verb_dict)
+
         try:
             vector_1 = [curr_matrix[curr_noun_dict[noun1_name]][curr_verb_dict[verb1_name]],
                         curr_matrix[curr_noun_dict[noun1_name]][curr_verb_dict[verb2_name]]]
@@ -304,3 +303,80 @@ class CoocMatrix:
 
         utils.plot_vectors(vector_1, vector_2, noun1_name, noun2_name, verb1_name, verb2_name)
         return True
+
+    def create_soc_pmi_matrix(self, matrix):
+        if self.is_pmi_calculated is False:
+            print('The matrices have to have their pmi values computed before calling this method ')
+            return
+
+        max_value = -1
+
+        # Noun per Noun matrix
+        self.soc_pmi_matrix = np.zeros((matrix.shape[0], matrix.shape[0]))
+
+        # Default values, after they will need some calculation to be effective
+        delta = 0.9
+        gama = 3
+
+        beta_constant = np.log2(matrix.shape[1])/delta
+
+        i = 0
+        while i < self.soc_pmi_matrix.shape[0] - 1:
+            beta1 = np.maximum(int(np.floor(calc_beta(matrix, beta_constant, i))), 1)
+            # print('beta1 = ' + str(beta1))
+            # print('matrix_dim = ' + str(matrix.shape[0]))
+            counts = zero_counter(matrix[i])
+            zero_counts1 = counts
+
+            beta_1_divisor = np.maximum((beta1-zero_counts1), 1)
+
+            beta_largest_pmi1 = heapq.nlargest(beta1, range(matrix.shape[1]), matrix[i].take)
+
+            j = i + 1
+            while j < self.soc_pmi_matrix.shape[0]:
+                beta2 = np.maximum(int(np.floor(calc_beta(matrix, beta_constant, j))), 1)
+
+                counts = zero_counter(matrix[j])
+                zero_counts2 = counts
+
+                beta_largest_pmi2 = heapq.nlargest(beta2, range(matrix.shape[1]),
+                                                   matrix[j].take)
+
+                common_indices = np.intersect1d(beta_largest_pmi1, beta_largest_pmi2)
+
+                f_beta1 = f_beta2 = 0
+                for index in common_indices:
+                    f_beta1 += np.power(matrix[j][index], gama)
+                    f_beta2 += np.power(matrix[i][index], gama)
+
+                self.soc_pmi_matrix[i][j] = (f_beta1/beta_1_divisor) + (f_beta2/np.maximum((beta2-zero_counts2), 1))
+                # if max_value < self.soc_pmi_matrix[i][j]:
+                #     max_value = self.soc_pmi_matrix[i][j]
+                #     print('max_value = ' + str(max_value) + ' | i = ' + str(i) + ' | j = ' + str(j))
+
+
+                j += 1
+
+            i += 1
+            print(i)
+
+        # self.soc_pmi_matrix /= max_value
+        # print(max_value)
+
+        print('end')
+
+
+def calc_beta(matrix, beta_constant, row_index):
+    # print('np.power(np.log(matrix[row_index].sum()) ,2) = ' + str(np.power(np.log(matrix[row_index].sum()) ,2)))
+    # print('np.log2(matrix.shape[1])/delta = ' + str(np.log2(matrix.shape[1])/delta))
+    # print('beta = ' + str(np.power(np.log(matrix[row_index].sum()) ,2) * np.log2(matrix.shape[1])/delta))
+    return np.power(np.log(matrix[row_index].sum()), 2) * beta_constant
+
+
+def zero_counter(vec):
+    counter = 0
+    for element in vec:
+        if element == 0:
+            counter += 1
+
+    return counter
