@@ -279,7 +279,21 @@ class CoocMatrix:
 
 
     def plot_two_word_vectors(self, noun1_name, noun2_name, verb1_name, verb2_name, with_filtered_matrix = True):
+        """
+        This function is called by the GUI and focus on obtaining the information needed to load the word vectors
+        graphically on the screen. The goal is to display two rows of the matrix to see how they differ when compared
+        against two verbs that will be the x and y axis of the plot.
+        :param noun1_name: A string containing the name of the first noun to be used in the comparision
+        :param noun2_name: A string containing the name of the second noun to be used in the comparision
+        :param verb1_name: A string containing the name of the first verb to be used in the comparision (x axis)
+        :param verb2_name: A string containing the name of the second verb to be used in the comparision (y axis)
+        :param with_filtered_matrix: A boolean value to determine which of the two matrices will be used to generate
+        the plot
+        :return: The function returns a boolean value to indicate to the GUI if the wanted values where found in the
+        desired matrix.
+        """
 
+        # Decides which matrix will be used
         if with_filtered_matrix:
             curr_matrix = self.filtered_matrix
             curr_noun_dict = self.filtered_noun_rows
@@ -289,9 +303,8 @@ class CoocMatrix:
             curr_noun_dict = self.noun_rows
             curr_verb_dict = self.verb_columns
 
-        print(curr_noun_dict)
-        print(curr_verb_dict)
-
+        # Will try to find the values related to the wanted keys (the keys being the nouns and verbs names and the
+        # values been the numerical PPMI weighted values)
         try:
             vector_1 = [curr_matrix[curr_noun_dict[noun1_name]][curr_verb_dict[verb1_name]],
                         curr_matrix[curr_noun_dict[noun1_name]][curr_verb_dict[verb2_name]]]
@@ -301,59 +314,88 @@ class CoocMatrix:
         except KeyError:
             return False
 
+        # Calls the utils function for the un-specialized graphical work
         utils.plot_vectors(vector_1, vector_2, noun1_name, noun2_name, verb1_name, verb2_name)
         return True
 
+
     def create_soc_pmi_matrix(self, matrix):
+        """
+        This function has the objective of obtain a second order measurement for the input text. It will generate a
+        matrix with zeros from the diagonal to below. Both x and y axis will refer to nouns and each element of the
+        part above the diagonal will be the second order co-occurrence value calculated for each noun-noun pair.
+        The higher the value, the higher will be the similarity between the two nouns
+        :param matrix: will be the numpy matrix used to obtain the soc-pmi-matrix
+        :return: None
+        """
+
+        # The PPMI values must had been calculated
         if self.is_pmi_calculated is False:
             print('The matrices have to have their pmi values computed before calling this method ')
             return
 
-        max_value = -1
+        # max_value = -1
 
-        # Noun per Noun matrix
+        # Noun per Noun matrix (much bigger size that the noun-verb matrix)
         self.soc_pmi_matrix = np.zeros((matrix.shape[0], matrix.shape[0]))
 
-        # Default values, after they will need some calculation to be effective
+        # Default values from the soc-pmi algorithm, after they will need some calculation to be effective
         delta = 0.9
         gama = 3
 
+        # A constant value calculated only here to save processing
         beta_constant = np.log2(matrix.shape[1])/delta
 
+        # This loop makes all the unique noun-noun combinations
         i = 0
         while i < self.soc_pmi_matrix.shape[0] - 1:
+            # calculate the bigger loop noun's beta value
             beta1 = np.maximum(int(np.floor(calc_beta(matrix, beta_constant, i))), 1)
-            # print('beta1 = ' + str(beta1))
-            # print('matrix_dim = ' + str(matrix.shape[0]))
+
+            # calculate the number of zero values within this noun's row
             counts = zero_counter(matrix[i])
             zero_counts1 = counts
 
+            # Pre calculates this value to save processing
             beta_1_divisor = np.maximum((beta1-zero_counts1), 1)
 
+            # Gets the indices of the highest values in decreasing order
             beta_largest_pmi1 = heapq.nlargest(beta1, range(matrix.shape[1]), matrix[i].take)
 
+            # This attribution eliminates self noun-noun combinations and repetitive noun-noun combinations, since
+            # this matrix will be mirrored by its diagonal if it was fully filled
             j = i + 1
+
+            # This loop combines the noun fixed in the above loop with every other noun in the matrix
             while j < self.soc_pmi_matrix.shape[0]:
+
+                # calculate the smaller loop noun's beta value
                 beta2 = np.maximum(int(np.floor(calc_beta(matrix, beta_constant, j))), 1)
 
+                # calculate the number of zero values within this noun's row
                 counts = zero_counter(matrix[j])
                 zero_counts2 = counts
 
+                # Gets the indices of the highest values in decreasing order
                 beta_largest_pmi2 = heapq.nlargest(beta2, range(matrix.shape[1]),
                                                    matrix[j].take)
 
+                # Generates a list of the common values between the two decreasing order highest values in the two
+                # rows analyzed by this loop iteration. Since the values in these arrays are the column indices on the
+                # matrix we can obtain the second matrix coordinate that will be used below
                 common_indices = np.intersect1d(beta_largest_pmi1, beta_largest_pmi2)
 
+                # Will calculate the f_beta value of the algorithm
                 f_beta1 = f_beta2 = 0
                 for index in common_indices:
                     f_beta1 += np.power(matrix[j][index], gama)
                     f_beta2 += np.power(matrix[i][index], gama)
 
+                # Finally will calculate the second order similarity between the two nouns
+                # (i's row noun and j's row noun)
                 self.soc_pmi_matrix[i][j] = (f_beta1/beta_1_divisor) + (f_beta2/np.maximum((beta2-zero_counts2), 1))
                 # if max_value < self.soc_pmi_matrix[i][j]:
                 #     max_value = self.soc_pmi_matrix[i][j]
-                #     print('max_value = ' + str(max_value) + ' | i = ' + str(i) + ' | j = ' + str(j))
-
 
                 j += 1
 
@@ -361,19 +403,31 @@ class CoocMatrix:
             print(i)
 
         # self.soc_pmi_matrix /= max_value
-        # print(max_value)
 
         print('end')
 
 
 def calc_beta(matrix, beta_constant, row_index):
-    # print('np.power(np.log(matrix[row_index].sum()) ,2) = ' + str(np.power(np.log(matrix[row_index].sum()) ,2)))
-    # print('np.log2(matrix.shape[1])/delta = ' + str(np.log2(matrix.shape[1])/delta))
-    # print('beta = ' + str(np.power(np.log(matrix[row_index].sum()) ,2) * np.log2(matrix.shape[1])/delta))
+    """
+    Calculates the beta value of the algorithm in a different way of the one shown in the paper. This is easier and
+    will only impact in a different number of elements in the 'beta_largest_pmi*' vector size. The constants can be
+    calibrated to compensate for a difference in the beta value.
+    :param matrix: Matrix from which the value of the row will be extracted
+    :param beta_constant: The beta constant value to avoid calculate it every time
+    :param row_index: Which row to pick
+    :return: The beta value
+    """
+    # This formula was taken from the original paper. Although, the sum here uses the already weighted pmi values and
+    # in the paper the sum will use the raw term frequency. I think there is no problem in that.
     return np.power(np.log(matrix[row_index].sum()), 2) * beta_constant
 
 
 def zero_counter(vec):
+    """
+    Will count the number of zero values inside an array
+    :param vec: Array from which the number of zero values will be calculated
+    :return: The number of zero values inside the array 'vec'
+    """
     counter = 0
     for element in vec:
         if element == 0:
