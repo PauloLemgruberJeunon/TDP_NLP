@@ -1,6 +1,9 @@
 import nltk
 import enchant
 
+source_name = 'product_design_and_development'
+source_txt_name = source_name + '.txt'
+
 
 def complete_filter(input_file_name, output_discarded_words=False, encoding='utf8'):
     input_file = open(input_file_name, 'r', encoding=encoding)
@@ -8,13 +11,16 @@ def complete_filter(input_file_name, output_discarded_words=False, encoding='utf
     input_file.close()
 
     temp_text = unite_hyphenated_words(temp_text)
+    print('unite_hyphenated_words ... done')
 
     temp_text = treat_strange_symbols(temp_text)
+    print('treat_strange_symbols ... done')
 
     output_dict = only_english_words(temp_text, output_discarded_words)
+    print('only_english_words ... done')
 
     for key in output_dict.keys():
-        output_file = open('..\\txtFiles\\' + key + '.txt', 'w', encoding=encoding)
+        output_file = open('..\\txtFiles\\' + source_txt_name + '_' + key + '.txt', 'w', encoding=encoding)
         output_file.write(output_dict[key])
         output_file.close()
 
@@ -48,7 +54,7 @@ def treat_strange_symbols(txt_input):
 
 
 def main():
-    complete_filter('..\\txtFiles\\pdfToTxt.txt', True)
+    complete_filter('..\\txtFiles\\'+source_txt_name, True)
 
 
 if __name__ == '__main__':

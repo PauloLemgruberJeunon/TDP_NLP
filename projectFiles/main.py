@@ -2,11 +2,21 @@ import nltk
 from nltk.tag.stanford import CoreNLPPOSTagger
 import matrixutils as mu
 import utils
+from utils import path_to_txtFolder
+from utils import path_to_xlsxFolder
 from tkinter import *
 from wordvectorsgui import VectorDrawGui
 
 # Global variable just to decide if the cooc_matrix will be generated or loaded from the xlsx file
-load_matrix = True
+load_matrix = False
+
+save_xlsx_file_name = 'test-lemma-42.xlsx'
+load_xlsx_file_name = 'test-lemma-42.xlsx'
+
+load_input_text_file_name = 'filtered_txt_output.txt'
+save_tagged_words_file_name = 'tagged_text.txt'
+
+default_encoding = 'utf8'
 
 
 def main():
@@ -15,7 +25,7 @@ def main():
     if load_matrix is not True:
 
         # The worksheet will be saved in a excel workbook with the file name and location equal to the string below
-        workbook = utils.create_workbook('..\\xlsxFiles\\test-lemma-42.xlsx')
+        workbook = utils.create_workbook(path_to_xlsxFolder+save_xlsx_file_name)
 
         # In the lines below the worksheets will be created and associated to the workbook
         worksheet = utils.get_new_worksheet('cooc_matrix_filtered', workbook)
@@ -28,7 +38,7 @@ def main():
         tagger = CoreNLPPOSTagger(url='http://localhost:9000')
 
         # This will open the text .txt archive and read it
-        file = open('..\\txtFiles\\filtered_txt_output.txt', 'r', encoding="utf8")
+        file = open(path_to_txtFolder+load_input_text_file_name, 'r', encoding=default_encoding)
 
         # This will transform the archive into a huge string
         raw_text = file.read()
@@ -57,7 +67,7 @@ def main():
 
         # Just a prompt to check if the user wants to save the tagged_text in a .txt file for further analysis
         if input('Want to save tagged text? (y/n)').lower() == 'y':
-            utils.save_tagged_words(tagged_text)
+            utils.save_tagged_words(tagged_text, path_to_txtFolder+save_tagged_words_file_name, default_encoding)
 
         # Will create context windows (word windows). A list that contains lists of tagged words
         windows = utils.tokens_to_centralized_windows(tagged_text, 15)
@@ -100,13 +110,14 @@ def main():
 
     # In this case the co-occurrence will be loaded from the xlsx archives
     else:
-        content = utils.load_from_wb('..\\xlsxFiles\\test-lemma.xlsx')
+        content = utils.load_from_wb(path_to_xlsxFolder+load_xlsx_file_name)
         cooc_matrix = mu.CoocMatrix(build_matrix=False, content=content)
 
     # Creation of the GUI
     root = Tk()
     vec_gui = VectorDrawGui(root, cooc_matrix)
     root.mainloop()
+
 
 if __name__ == "__main__":
     main()

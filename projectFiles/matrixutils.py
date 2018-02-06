@@ -49,6 +49,12 @@ class CoocMatrix:
             self.filtered_noun_rows = content['filtered_noun_rows']
             self.filtered_noun_rows_size = self.filtered_matrix.shape[0]
 
+            # The row nouns are exactly equal to the filtered_matrix and the columns are mirrors from the rows in
+            # this matrix
+            self.soc_pmi_matrix = content['soc_pmi_matrix']
+
+            self.is_pmi_calculated = True
+
 
     def create_coocmatrix(self, windows):
         """
