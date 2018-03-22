@@ -4,3 +4,7 @@ __pycache__
 stanford*
 venv*
 *.gdf
+*.class
+*.rar
+*.zip
+*.jar

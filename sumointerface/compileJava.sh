@@ -1,0 +1,1 @@
+javac -d /home/paulojeunon/workspace/sumointerface/classes -cp /home/paulojeunon/workspace/sigmakee/build/classes:/home/paulojeunon/workspace/sigmakee/build/lib/*:./libs/ws4j-1.0.1.jar WordGraph.java WordContainer.java GDFPrinter.java Utils.java
