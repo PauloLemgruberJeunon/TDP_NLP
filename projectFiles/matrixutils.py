@@ -1,16 +1,25 @@
 import numpy as np
-import nltk
 import heapq
-import utils
 from scipy.spatial.distance import cosine
 
+import nltk
+from nltk.corpus import wordnet
+from nltk.corpus import wordnet_ic
+
+import projectFiles.utils as utils
+import projectFiles.constants as cts
+
+lch_maximum_obtained_value = 3.63758
 
 class CoocMatrix:
     """
     Class responsible to handle the co-occurrence matrix operations
     """
 
-    def __init__(self, windows=None, build_matrix=True, content=None):
+    def __init__(self, windows=None, build_matrix=True, content=None, enable_lemmatization=True):
+
+        print('matrix construction class')
+
         #  Dictionary have a noun for key and a row index for value
         self.noun_rows = {}
         self.noun_rows_size = 0
@@ -20,22 +29,20 @@ class CoocMatrix:
         self.verb_columns_size = 0
 
         #  The co-occurrence matrix
-        self.matrix = np.array([[0, 0], [0, 0]])
+        self.matrix = np.array([[0, 0], [0, 0]], dtype=float)
 
-        #  The same thing as the above variables, but, now, referring to the filtered matrix
-        self.filtered_matrix = 0
-        self.filtered_verb_columns_size = 0
-        self.filtered_noun_rows_size = 0
-        self.filtered_verb_columns = {}
-        self.filtered_noun_rows = {}
+        self.verb_filtered_arrays = {}
+        self.nouns_from_verb_arrays = {}
 
         self.is_pmi_calculated = False
         self.soc_pmi_matrix = None
 
+        self.noun_to_noun_sim_matrices = []
+
         if build_matrix:
             #  Functions called to calculate the co-occurrence matrix and it's filtered version
-            self.create_coocmatrix(windows)
-            self.filter_coocmatrix()
+            self.create_coocmatrix(windows, enable_lemmatization)
+            self.filter_coocmatrix2()
         else:
             self.matrix = content['matrix']
             self.verb_columns = content['verb_columns']
@@ -43,11 +50,11 @@ class CoocMatrix:
             self.noun_rows = content['noun_rows']
             self.noun_rows_size = self.matrix.shape[0]
 
-            self.filtered_matrix = content['filtered_matrix']
-            self.filtered_verb_columns = content['filtered_verb_columns']
-            self.filtered_verb_columns_size = self.filtered_matrix.shape[1]
-            self.filtered_noun_rows = content['filtered_noun_rows']
-            self.filtered_noun_rows_size = self.filtered_matrix.shape[0]
+            # self.filtered_matrix = content['filtered_matrix']
+            # self.filtered_verb_columns = content['filtered_verb_columns']
+            # self.filtered_verb_columns_size = self.filtered_matrix.shape[1]
+            # self.filtered_noun_rows = content['filtered_noun_rows']
+            # self.filtered_noun_rows_size = self.filtered_matrix.shape[0]
 
             # The row nouns are exactly equal to the filtered_matrix and the columns are mirrors from the rows in
             # this matrix
@@ -55,8 +62,7 @@ class CoocMatrix:
 
             self.is_pmi_calculated = True
 
-
-    def create_coocmatrix(self, windows):
+    def create_coocmatrix(self, windows, enable_lemmatization):
         """
         From the list of windows creates the co-occurrence matrix and stores it ans its parameters in self.matrix
 
@@ -69,46 +75,66 @@ class CoocMatrix:
         None
         """
 
+        print('create_coocmatrix started')
+
         lemmatizer = nltk.stem.WordNetLemmatizer()
 
         window_verbs = []
         window_nouns = []
 
+        progress = 0
         for window in windows:  # Iterates over the windows
-            check_window = list(window)
+            progress += 1
+            # if enable_verb_filter:
+            #     check_window = list(window)
+            #     window_skip_counter = 0
+            #
+            #     valid_window = False
+            #     for (word, tag) in check_window:
+            #         if tag.startswith('V'):
+            #             word = lemmatizer.lemmatize(word, 'v')
+            #             if word in utils.verbs_to_keep:
+            #                 valid_window = True
+            #                 break
+            #
+            #     if not valid_window:
+            #         window_skip_counter += 1
+            #         print('number of skipped windows = ' + str(window_skip_counter))
+            #         continue
 
-            valid_window = False
-            for (word, tag) in check_window:
-                if tag.startswith('V'):
-                    word = lemmatizer.lemmatize(word, 'v')
-                    if word in utils.verbs_to_keep:
-                        valid_window = True
-                        break
+            central_verb_index = window[1]
+            window = window[0]
 
-            if not valid_window:
-                continue
-
+            word_counter = 0
             for (word, tag) in window:  # Iterates over each tagged word inside the window
-                if tag.startswith('V'):  # If it is a verb store it on a dictionary and increase the size of
-                    # columns
-                    word = lemmatizer.lemmatize(word, 'v')
 
-                    if word in utils.verbs_to_keep:
-                        word = 'to ' + word
-                        window_verbs.append(word)
-                        if word not in self.verb_columns:
-                            self.verb_columns[word] = self.verb_columns_size
-                            self.verb_columns_size += 1
-                            if self.verb_columns_size > 2:
-                                self.matrix = np.lib.pad(self.matrix, ((0, 0), (0, 1)), 'constant', constant_values=0)
+
+                if word_counter == central_verb_index and tag.startswith('V'):  # If it is a verb store it on a dictionary and increase the size of
+                    # columns
+                    if enable_lemmatization:
+                        word = lemmatizer.lemmatize(word, 'v')
+
+                    word = 'to ' + word
+                    window_verbs.append(word)
+                    if word not in self.verb_columns:
+                        self.verb_columns[word] = self.verb_columns_size
+                        self.verb_columns_size += 1
+                        if self.verb_columns_size > 2:
+                            self.matrix = np.lib.pad(self.matrix, ((0, 0), (0, 1)), 'constant', constant_values=0)
 
                 if tag.startswith('NN'):  # If it is a Noun do the same as the verbs, but increase the rows
+
+                    if enable_lemmatization:
+                        word = lemmatizer.lemmatize(word)
+
                     window_nouns.append(word)
                     if word not in self.noun_rows:
                         self.noun_rows[word] = self.noun_rows_size
                         self.noun_rows_size += 1
                         if self.noun_rows_size > 2:
                             self.matrix = np.lib.pad(self.matrix, ((0, 1), (0, 0)), 'constant', constant_values=0)
+
+                word_counter += 1
 
             for verb in window_verbs:  # fills the matrix with the co-occurrences
                 j = self.verb_columns.get(verb)
@@ -119,19 +145,7 @@ class CoocMatrix:
             window_verbs.clear()  # Clear temp lists for next iteration
             window_nouns.clear()
 
-        # temp_inv_noun_dict =  utils.invert_dictionary(self.noun_rows)
-
-        # i = 0
-        # while i < self.matrix.shape[0]:
-        #     if np.sum(self.matrix[i]) == 0:
-        #         self.matrix = np.delete(self.matrix,i,0)
-        #         del temp_inv_noun_dict[i]
-        #         i -= 1
-        #
-        #     i += 1
-        #
-        # self.noun_rows_size = self.matrix.shape[0]
-
+        print('create_coocmatrix ended')
 
 
     @staticmethod
@@ -149,6 +163,9 @@ class CoocMatrix:
         -------
         temp_matrix
         """
+
+        print('calc_ppmi started')
+
         # Laplace smoothing
         if improver is 1:
             temp_matrix = np.add(cooc_matrix, constant)
@@ -156,7 +173,7 @@ class CoocMatrix:
             temp_matrix = cooc_matrix
 
         # Sum all the elements in the matrix
-        total = temp_matrix.sum()
+        total = temp_matrix.sum(dtype=float)
         # Creates an array with each element containing the sum of one column
         total_per_column = temp_matrix.sum(axis=0, dtype='float')
         # Creates an array with each element containing the sum of one row
@@ -174,117 +191,140 @@ class CoocMatrix:
                 pw = total_per_line[i]/total
                 pc = total_per_column[j]/total
 
+                if improver is 1 and temp_matrix[i][j] - constant == 0:
+                    temp_matrix[i][j] = 0
+
                 # Checks for division per zero
-                if pw*pc == 0:
+                elif pw*pc == 0:
                     temp_matrix[i][j] = 0
                 else:
                     # Calculates the new wighted value
                     temp_matrix[i][j] = np.maximum(np.log2(pcw/(pw*pc)), 0)
 
+        print('calc_ppmi ended')
+
         return temp_matrix
 
+    def filter_coocmatrix2(self):
 
-    def filter_coocmatrix(self):
-        """
-        Finds the 30% highest occurring elements from the matrix, deletes the columns and rows that do not contain
-        at least one of this element. Rebuild the matrix storing on the variable "filtered matrix"
+        print('filter_coocmatrix2 started')
 
-        Returns
-        -------
-        None
-        """
+        verb_keys = self.verb_columns.keys()
 
-        #  Gets the number that corresponds to 30% of the total of elements in the matrix
-        thirty_percent = int(np.ceil(self.noun_rows_size * self.verb_columns_size * 0.3))
+        num_of_rows = self.matrix.shape[0]
+        thirty_percent = int(np.ceil(0.3 * num_of_rows))
 
-        #  Creates an empty numpy array with the size of the entire matrix
-        temp_matrix_list = np.empty(self.noun_rows_size * self.verb_columns_size)
+        inverted_noun_rows_dict = utils.invert_dictionary(self.noun_rows)
 
-        x = 0
+        for verb in verb_keys:
+            verb_index = self.verb_columns[verb]
 
-        #  Fit the matrix in a 1D array
-        for i in self.matrix.flat:
-            temp_matrix_list[x] = i
-            x += 1
+            temp_column = self.matrix[:, verb_index]
+            thirty_percent_largest_indices = heapq.nlargest(thirty_percent, range(num_of_rows), temp_column.take)
 
-        #  Get a list of indices of the 30% most occurring items on the "1D matrix"
-        thirty_percent_bigger_ind = heapq.nlargest(thirty_percent,
-                                                   range(self.noun_rows_size * self.verb_columns_size),
-                                                   temp_matrix_list.take)
+            most_co_occurring_nouns_values = list(temp_column[thirty_percent_largest_indices])
 
-        i = 0
-        real_aij_matrix_pos = []
+            self.verb_filtered_arrays[verb] = most_co_occurring_nouns_values
+            self.nouns_from_verb_arrays[verb] = [inverted_noun_rows_dict[index] for index
+                                                 in thirty_percent_largest_indices]
 
-        #  transform the obtained 1D-matrix's indices to the indices of the real matrix (2D indices)
-        while i < thirty_percent:
-            real_aij_matrix_pos.append([thirty_percent_bigger_ind[i] // self.verb_columns_size,
-                                        thirty_percent_bigger_ind[i] % self.verb_columns_size])
-            i += 1
+        print('filter_coocmatrix2 ended')
 
-        self.filtered_verb_columns_size = 0
-        self.filtered_noun_rows_size = 0
-        noun_row_idxs = {}
-        verb_column_idxs = {}
+    # def filter_coocmatrix(self):
+    #     """
+    #     Finds the 30% highest occurring elements from the matrix, deletes the columns and rows that do not contain
+    #     at least one of this element. Rebuild the matrix storing on the variable "filtered matrix"
+    #
+    #     Returns
+    #     -------
+    #     None
+    #     """
+    #
+    #     #  Gets the number that corresponds to 30% of the total of elements in the matrix
+    #     thirty_percent = int(np.ceil(self.noun_rows_size * self.verb_columns_size * 0.3))
+    #
+    #     #  Creates an empty numpy array with the size of the entire matrix
+    #     temp_matrix_list = np.empty(self.noun_rows_size * self.verb_columns_size)
+    #
+    #     x = 0
+    #
+    #     #  Fit the matrix in a 1D array
+    #     for i in self.matrix.flat:
+    #         temp_matrix_list[x] = i
+    #         x += 1
+    #
+    #     #  Get a list of indices of the 30% most occurring items on the "1D matrix"
+    #     thirty_percent_bigger_ind = heapq.nlargest(thirty_percent,
+    #                                                range(self.noun_rows_size * self.verb_columns_size),
+    #                                                temp_matrix_list.take)
+    #
+    #     i = 0
+    #     real_aij_matrix_pos = []
+    #
+    #     #  transform the obtained 1D-matrix's indices to the indices of the real matrix (2D indices)
+    #     while i < thirty_percent:
+    #         real_aij_matrix_pos.append([thirty_percent_bigger_ind[i] // self.verb_columns_size,
+    #                                     thirty_percent_bigger_ind[i] % self.verb_columns_size])
+    #         i += 1
+    #
+    #     self.filtered_verb_columns_size = 0
+    #     self.filtered_noun_rows_size = 0
+    #     noun_row_idxs = {}
+    #     verb_column_idxs = {}
+    #
+    #     #  Separates the indices in row and column and store them as key in a dictionary to avoid repetition
+    #     for two_index in real_aij_matrix_pos:
+    #         if two_index[0] not in noun_row_idxs:
+    #             noun_row_idxs[two_index[0]] = 0
+    #             self.filtered_noun_rows_size += 1
+    #         if two_index[1] not in verb_column_idxs:
+    #             verb_column_idxs[two_index[1]] = 0
+    #             self.filtered_verb_columns_size += 1
+    #
+    #     k = 0
+    #     self.filtered_matrix = np.zeros((self.filtered_noun_rows_size, self.filtered_verb_columns_size), dtype=float)
+    #
+    #     #  Invert the dictionaries, now they have the index as the key and the word name as the value
+    #     temp_dict_noun = dict(zip(self.noun_rows.values(), self.noun_rows.keys()))
+    #     temp_dict_verb = dict(zip(self.verb_columns.values(), self.verb_columns.keys()))
+    #
+    #     #  This loop will build the filtered_matrix iterating over every index of the old matrix and checking if
+    #     #  this is one that it can discard.
+    #     for i in range(self.noun_rows_size):
+    #         if i not in noun_row_idxs:
+    #             continue
+    #         else:
+    #             #  This rebuilds the dictionaries that relate every noun with a row of the matrix
+    #             self.filtered_noun_rows[temp_dict_noun[i]] = k
+    #             l = 0
+    #         for j in range(self.verb_columns_size):
+    #             if j not in verb_column_idxs:
+    #                 continue
+    #             else:
+    #                 self.filtered_matrix[k][l] = self.matrix[i][j]
+    #                 #  This rebuilds the dictionaries that relate every verb with a column of the matrix
+    #                 self.filtered_verb_columns[temp_dict_verb[j]] = l
+    #                 l += 1
+    #         k += 1
 
-        #  Separates the indices in row and column and store them as key in a dictionary to avoid repetition
-        for two_index in real_aij_matrix_pos:
-            if two_index[0] not in noun_row_idxs:
-                noun_row_idxs[two_index[0]] = 0
-                self.filtered_noun_rows_size += 1
-            if two_index[1] not in verb_column_idxs:
-                verb_column_idxs[two_index[1]] = 0
-                self.filtered_verb_columns_size += 1
-
-        k = 0
-        self.filtered_matrix = np.zeros((self.filtered_noun_rows_size, self.filtered_verb_columns_size))
-
-        #  Invert the dictionaries, now they have the index as the key and the word name as the value
-        temp_dict_noun = dict(zip(self.noun_rows.values(), self.noun_rows.keys()))
-        temp_dict_verb = dict(zip(self.verb_columns.values(), self.verb_columns.keys()))
-
-        #  This loop will build the filtered_matrix iterating over every index of the old matrix and checking if
-        #  this is one that it can discard.
-        for i in range(self.noun_rows_size):
-            if i not in noun_row_idxs:
-                continue
-            else:
-                #  This rebuilds the dictionaries that relate every noun with a row of the matrix
-                self.filtered_noun_rows[temp_dict_noun[i]] = k
-                l = 0
-            for j in range(self.verb_columns_size):
-                if j not in verb_column_idxs:
-                    continue
-                else:
-                    self.filtered_matrix[k][l] = self.matrix[i][j]
-                    #  This rebuilds the dictionaries that relate every verb with a column of the matrix
-                    self.filtered_verb_columns[temp_dict_verb[j]] = l
-                    l += 1
-            k += 1
-
-
-    def cosine_vector_sim(self, noun1, noun2, with_filtered_matrix = True):
+    def cosine_vector_sim(self, noun1, noun2):
         """
         This function calculates the cosine similarity between two word vectors
         :param noun1: The name of a noun that belongs to the co-occurrence matrix to be compared
         :param noun2: The name of the other noun to be compared
-        :param with_filtered_matrix: Boolean that tells in which matrix the cosine will be calculated
         :return: The result of the cosine difference
         """
-        row_noun1 = self.filtered_noun_rows[noun1]
-        row_noun2 = self.filtered_noun_rows[noun2]
+        row_noun2 = self.noun_rows[noun2]
+        row_noun1 = self.noun_rows[noun1]
 
-        if with_filtered_matrix:
-            curr_matrix = self.filtered_matrix
-        else:
-            curr_matrix = self.matrix
+        curr_matrix = self.matrix
 
         row1 = curr_matrix[row_noun1]
         row2 = curr_matrix[row_noun2]
 
         return 1 - cosine(row1, row2)
 
-
-    def plot_two_word_vectors(self, noun1_name, noun2_name, verb1_name, verb2_name, with_filtered_matrix = True):
+    def plot_two_word_vectors(self, noun1_name, noun2_name, verb1_name, verb2_name):
         """
         This function is called by the GUI and focus on obtaining the information needed to load the word vectors
         graphically on the screen. The goal is to display two rows of the matrix to see how they differ when compared
@@ -293,21 +333,13 @@ class CoocMatrix:
         :param noun2_name: A string containing the name of the second noun to be used in the comparision
         :param verb1_name: A string containing the name of the first verb to be used in the comparision (x axis)
         :param verb2_name: A string containing the name of the second verb to be used in the comparision (y axis)
-        :param with_filtered_matrix: A boolean value to determine which of the two matrices will be used to generate
-        the plot
         :return: The function returns a boolean value to indicate to the GUI if the wanted values where found in the
         desired matrix.
         """
 
-        # Decides which matrix will be used
-        if with_filtered_matrix:
-            curr_matrix = self.filtered_matrix
-            curr_noun_dict = self.filtered_noun_rows
-            curr_verb_dict = self.filtered_verb_columns
-        else:
-            curr_matrix = self.matrix
-            curr_noun_dict = self.noun_rows
-            curr_verb_dict = self.verb_columns
+        curr_matrix = self.matrix
+        curr_noun_dict = self.noun_rows
+        curr_verb_dict = self.verb_columns
 
         # Will try to find the values related to the wanted keys (the keys being the nouns and verbs names and the
         # values been the numerical PPMI weighted values)
@@ -324,7 +356,6 @@ class CoocMatrix:
         utils.plot_vectors(vector_1, vector_2, noun1_name, noun2_name, verb1_name, verb2_name)
         return True
 
-
     def create_soc_pmi_matrix(self, matrix):
         """
         This function has the objective of obtain a second order measurement for the input text. It will generate a
@@ -334,6 +365,8 @@ class CoocMatrix:
         :param matrix: will be the numpy matrix used to obtain the soc-pmi-matrix
         :return: None
         """
+
+        print('create_soc_pmi_matrix started')
 
         # The PPMI values must had been calculated
         if self.is_pmi_calculated is False:
@@ -406,11 +439,125 @@ class CoocMatrix:
                 j += 1
 
             i += 1
-            print(i)
+            print(str(i) + '/' + str(self.soc_pmi_matrix.shape[0] - 1))
 
-        # self.soc_pmi_matrix /= max_value
+        print('create_soc_pmi_matrix ended')
 
-        print('end')
+
+    def highest_cosine_sim_array(self):
+
+        print('highest_cosine_sim_array started')
+
+        noun_dict = self.noun_rows
+
+        noun_dict_size = len(noun_dict)
+        noun_dict_keys = list(noun_dict.keys())
+
+        highest_sim_nouns = []
+
+        only_value_array_size = ((noun_dict_size * noun_dict_size) - noun_dict_size) // 2
+        only_value_array = np.empty(only_value_array_size)
+
+        counter = 0
+        i = 0
+        while i < noun_dict_size - 1:
+            j = i + 1
+
+            while j < noun_dict_size:
+                cosine_sim_value = self.cosine_vector_sim(noun_dict_keys[i], noun_dict_keys[j])
+                highest_sim_nouns.append((noun_dict_keys[i], noun_dict_keys[j], cosine_sim_value))
+                only_value_array[counter] = cosine_sim_value
+                counter += 1
+
+                j += 1
+
+            print(str(i) + '/' + str(noun_dict_size))
+            i += 1
+
+        largest_sim_indices = heapq.nlargest(only_value_array_size, range(only_value_array_size), only_value_array.take)
+        print(1)
+
+        print('highest_cosine_sim_array ended')
+
+        return [highest_sim_nouns[i] for i in largest_sim_indices]
+
+    def calculate_sim_matrix(self):
+
+        print('calculate_sim_matrix started')
+
+        self.noun_to_noun_sim_matrices.append(np.add(np.zeros((self.noun_rows_size, self.noun_rows_size), dtype=float),
+                                                  0.001))
+        self.noun_to_noun_sim_matrices.append(np.add(np.zeros((self.noun_rows_size, self.noun_rows_size), dtype=float),
+                                                  0.001))
+        self.noun_to_noun_sim_matrices.append(np.add(np.zeros((self.noun_rows_size, self.noun_rows_size), dtype=float),
+                                                  0.001))
+        self.noun_to_noun_sim_matrices.append(np.add(np.zeros((self.noun_rows_size, self.noun_rows_size), dtype=float),
+                                                  0.001))
+        self.noun_to_noun_sim_matrices.append(np.add(np.zeros((self.noun_rows_size, self.noun_rows_size), dtype=float),
+                                                     0.001))
+
+        inverted_noun_dict = utils.invert_dictionary(self.noun_rows)
+
+        brown_ic = wordnet_ic.ic('ic-brown.dat')
+
+        for key in inverted_noun_dict:
+            print(str(key)+ ': ' + inverted_noun_dict[key])
+
+        i = 0
+        while i < (self.noun_rows_size - 1):
+            j = i + 1
+            w1 = wordnet.synsets(inverted_noun_dict[i], pos=wordnet.NOUN)
+            if not w1:
+                print('Not able to find this noun: ' + inverted_noun_dict[i])
+                i += 1
+                continue
+
+            w1 = w1[0]
+
+            while j < self.noun_rows_size:
+                w2 = wordnet.synsets(inverted_noun_dict[j], pos=wordnet.NOUN)
+                if not w2:
+                    j += 1
+                    continue
+
+                w2 = w2[0]
+
+                self.noun_to_noun_sim_matrices[0][i][j] = w1.wup_similarity(w2)
+
+                # self.noun_to_noun_sim_matrices[1][i][j] = w1.path_similarity(w2)
+
+                self.noun_to_noun_sim_matrices[1][i][j] = w1.lch_similarity(w2)/lch_maximum_obtained_value
+
+                # self.noun_to_noun_sim_matrices[3][i][j] = w1.res_similarity(w2, brown_ic)
+
+                self.noun_to_noun_sim_matrices[2][i][j] = w1.jcn_similarity(w2, brown_ic)
+                if self.noun_to_noun_sim_matrices[2][i][j] > 1.0:
+                    self.noun_to_noun_sim_matrices[2][i][j] = 1.0
+                elif self.noun_to_noun_sim_matrices[2][i][j] < 0.0:
+                    self.noun_to_noun_sim_matrices[2][i][j] = 0.001
+
+                self.noun_to_noun_sim_matrices[3][i][j] = w1.lin_similarity(w2, brown_ic)
+                if self.noun_to_noun_sim_matrices[3][i][j] < 0.0:
+                    self.noun_to_noun_sim_matrices[3][i][j] = 0.001
+
+                average_simmilarity = (self.noun_to_noun_sim_matrices[0][i][j] +
+                                       self.noun_to_noun_sim_matrices[1][i][j] +
+                                       self.noun_to_noun_sim_matrices[2][i][j] +
+                                       self.noun_to_noun_sim_matrices[3][i][j]) / 4.0
+
+                if average_simmilarity < 0.001:
+                    average_simmilarity = 0.001
+                elif average_simmilarity > 1.0:
+                    average_simmilarity = 1.0
+
+                self.noun_to_noun_sim_matrices[4][i][j] = average_simmilarity
+
+                j += 1
+
+            print('sim_matrix: ' + str(i) + '\n')
+            i += 1
+
+        print('calculate_sim_matrix ended')
 
 
 def calc_beta(matrix, beta_constant, row_index):
@@ -440,3 +587,85 @@ def zero_counter(vec):
             counter += 1
 
     return counter
+
+
+def save_noun_similarity_array(file_name, encoding, noun_sim_array):
+    output_file = open(cts.path_to_txtFolder+file_name, 'w', encoding=encoding)
+
+    for (noun1, noun2, sim_value) in noun_sim_array:
+        output_file.write(noun1 + ' with ' + noun2 + ': ' + str(sim_value) + '\n')
+
+    output_file.close()
+
+
+def calculate_sim_matrix_from_list(noun_list, methods_list):
+
+    print('calculate_sim_matrix_from_list started')
+
+    noun_to_noun_sim_matrices = {}
+
+    noun_list_size = len(noun_list)
+    for method in methods_list:
+        noun_to_noun_sim_matrices[method] = np.add(np.zeros((noun_list_size, noun_list_size), dtype=float),
+                                                            0.001)
+
+    brown_ic = wordnet_ic.ic('ic-brown.dat')
+
+    i = 0
+    while i < (noun_list_size - 1):
+        j = i + 1
+        w1 = wordnet.synsets(noun_list[i], pos=wordnet.NOUN)
+        if not w1:
+            print('Not able to find this noun: ' + noun_list[i])
+            i += 1
+            continue
+
+        w1 = w1[0]
+
+        while j < noun_list_size:
+            w2 = wordnet.synsets(noun_list[j], pos=wordnet.NOUN)
+            if not w2:
+                j += 1
+                continue
+
+            w2 = w2[0]
+
+            if 'wup' in noun_to_noun_sim_matrices:
+                value = w1.wup_similarity(w2)
+                value = utils.limit_value(value, 0.001, 1.0)
+                noun_to_noun_sim_matrices['wup'][i][j] = value
+
+            if 'jcn' in noun_to_noun_sim_matrices:
+                value = w1.wup_similarity(w2)
+                value = utils.limit_value(value, 0.001, 1.0)
+                noun_to_noun_sim_matrices['jcn'][i][j] = value
+
+            if 'lin' in noun_to_noun_sim_matrices:
+                value = w1.wup_similarity(w2)
+                value = utils.limit_value(value, 0.001, 1.0)
+                noun_to_noun_sim_matrices['lin'][i][j] = value
+
+            if 'lch' in noun_to_noun_sim_matrices:
+                value = w1.wup_similarity(w2)
+                value = utils.limit_value(value, 0.001, 1.0)
+                noun_to_noun_sim_matrices['lch'][i][j] = value
+
+            if 'methods_average' in noun_to_noun_sim_matrices:
+
+                value = 0.0
+                for method in methods_list:
+                    value += noun_to_noun_sim_matrices[method][i][j]
+
+                value /= 4
+
+                value = utils.limit_value(value, 0.001, 1.0)
+                noun_to_noun_sim_matrices['methods_average'][i][j] = value
+
+            j += 1
+
+        i += 1
+        print('calculate_sim_matrix_from_list: ' + str(i) + '/' + str(noun_list_size-1))
+
+    print('calculate_sim_matrix_from_list ended')
+
+    return noun_to_noun_sim_matrices

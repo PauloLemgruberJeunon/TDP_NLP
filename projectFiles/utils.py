@@ -2,69 +2,176 @@
 This file intends to be an utility box, containing functions to help with smaller functionalities
 """
 
+import projectFiles.constants as cts
+
 import xlsxwriter
-import numpy as np
-from matplotlib import pyplot as plt
-import matplotlib.patches as mpatches
+import pandas as pd
 from openpyxl import load_workbook
 from openpyxl.utils import coordinate_from_string, column_index_from_string
+
+import numpy as np
+
+import matplotlib.patches as mpatches
+from matplotlib import pyplot as plt
+
 import nltk
+from nltk.tag.stanford import CoreNLPPOSTagger
+
+'''
+Below are functions called by the main.py file and are the start of the noun extraction process from books and xlsx
+sheets
+'''
+
+def read_text_input(file_input_path, encoding, lowerText=False):
+    print("read_text_input started")
+
+    # This will open the text .txt archive and read it
+    file = open(file_input_path, 'r', encoding=encoding)
+
+    # This will transform the archive into a huge string
+    raw_text = file.read()
+
+    if lowerText:
+        # This will lower all the upper case letters in the string (in the entire input file text)
+        raw_text = raw_text.lower()
+
+    print("read_text_input ended")
+
+    return raw_text
 
 
-# Global dictionary used to quickly check if a verb in the text is one that we want to keep in the co-occurrence matrix.
-# The values do not matter, only the keys
-verbs_to_keep = {'prepare': 1, 'synthesize': 1, 'generate': 1, 'define': 1, 'illustrate': 1, 'classify': 1,
-                'develop': 1, 'name': 1, 'defend': 1, 'explain': 1, 'describe': 1, 'criticize': 1,
-                'test': 1, 'review': 1, 'order': 1, 'analyze': 1, 'choose': 1, 'create': 1, 'combine': 1, 'infer': 1,
-                'extend': 1, 'modify': 1, 'compare': 1, 'indicate': 1, 'distinguish': 1, 'interpret': 1, 'justify': 1,
-                'identify': 1, 'list': 1, 'evaluate': 1, 'calculate': 1, 'design': 1, 'recognize': 1, 'model': 1,
-                'discuss': 1, 'practice': 1, 'apply': 1, 'estimate': 1, 'compute': 1, 'solve': 1, 'conclude': 1,
-                'predict': 1}
+def tokenize_string(text_string, eliminateNonAlphaNumericalCharacters=False):
+    print("tokenize_string started")
 
-path_to_xlsxFolder = '..\\xlsxFiles\\'
-path_to_txtFolder = '..\\txtFiles\\'
+    if eliminateNonAlphaNumericalCharacters:
+        # This will create a python list named 'tokens' that will have each word/number as an element
+        # It will eliminate all kinds of non-alpha numerical characters (punctuation included)
+        tokens = nltk.tokenize.RegexpTokenizer(r'\w+').tokenize(text_string)
+    else:
+        tokens = nltk.tokenize.word_tokenize(text_string)
+
+    print("tokenize_string ended")
+
+    return tokens
 
 
-def measure_postag_accuracy(tagged_sents, tagged_words):
+def tag_tokens_using_stanford_corenlp(token_list, corenlp_server_address='http://localhost:9000'):
+    print("tag_tokens_using_stanford_corenlp started")
+
+    tagger = CoreNLPPOSTagger(url=corenlp_server_address)
+
+    # The piece of code below is exists to deal with a limitation of the Stanford's coreNLP Server that only
+    # supports 100000 characters per server call. So this will break the text in a lot of smaller pieces and send
+    # them to the server and after will unite them all in one list of tagged words ('tagged_text')
+    tagged_text = []
+    txt_size = len(token_list)
+    i = 0
+    while i < txt_size:
+        tokens_to_tag = token_list[i:i + 6000]
+        i += 6001
+        if i + 6000 >= txt_size:
+            tokens_to_tag = token_list[i:txt_size]
+            i = txt_size + 1
+
+        tagged_text += tagger.tag(tokens_to_tag)
+
+    print("tag_tokens_using_stanford_corenlp ended")
+
+    return tagged_text
+
+
+def tokens_to_windows(tokens, window_size):
     """
-    Function used to measure the accuracy of a POSTagger (does not handle different types of tag standards)
-    Parameters
-    ----------
-    tagged_sents : Are the sentences of the database used to measure the accuracy of the tagger ("Test set")
-    tagged_words : Are the words of the sentences stored in "tagged_sents" the were tagged by the POSTagger
-
-    Returns
-    -------
-    The measured accuracy of the POSTagger
+    Transform a tokenized text into a series of windows for them to serve as contexts
+    :param tokens: A python list containing the tokenized text
+    :param window_size: The wanted window size
+    :return: A python list containing the "tokens" separated in windows
     """
 
-    total_count = 0
-    right_count = 0
+    print("tokens_to_windows started")
 
-    for i in range(0, len(tagged_sents)):
-        print('[Accuracy] Current stage = ' + str(i))
-        k = 0
-        j = 0
-        local_count = 0
-        local_right_count = 0
-        while j < len(tagged_sents[i]):
-            total_count += 1
-            local_count += 1
-            if tagged_sents[i][j][1] == '-NONE-':
-                while tagged_sents[i][j][1] == '-NONE-':
-                    j += 1
-                while tagged_sents[i][j][0] != tagged_words[i][k][0]:
-                    k += 1
-            if tagged_sents[i][j][1] == tagged_words[i][k][1]:
-                right_count += 1
-                local_right_count += 1
+    i = 0
+    tagged_text_size = len(tokens)
+    temp_list = []
+    windows = []
+    while i < tagged_text_size:
+        temp_list.append(tokens[i])
+        if (i + 1) % window_size == 0:
+            windows.append(temp_list.copy())
+            temp_list.clear()
+        i += 1
 
-            k += 1
-            j += 1
-        print('Local iter accuracy = ' + str(local_right_count/local_count) + '\n')
+    if tagged_text_size % window_size != 0:
+        windows.append(temp_list.copy())
 
-    return right_count/total_count
+    print("tokens_to_windows ended")
 
+    return windows
+
+
+def tokens_to_centralized_windows(tagged_text, window_size, enable_verb_filter):
+    """
+    This function is other windowing method. It will find the desired verbs and make windows around them. The windows
+    can overlap, its normal.
+    :param tagged_text: A list of tuples. The contents of the tuples are two string, the first being the word and the
+    second being the tag related to the word
+    :param window_size: It is an integer that indicates the wanted size of the windows
+    :return: Returns a list of lists. Each inner list is a window containing the word-tag tuples
+    """
+
+    print("tokens_to_centralized_windows started")
+
+    tagged_text_size = len(tagged_text)
+    windows = []
+
+    lemmatizer = nltk.stem.WordNetLemmatizer()
+
+    # Checks if the 'window_size' value is even or odd
+    is_even = False
+    if window_size % 2 == 0:
+        is_even = True
+
+    # Based of the window size being even or odd the code below calculates the right and left offsets from the central
+    # element of the window, that is the wanted verbs in this case
+    begin_offset = window_size // 2
+    if is_even:
+        end_offset = (window_size // 2) - 1
+    else:
+        end_offset = (window_size // 2)
+
+    i = 0
+    # Iterates over the tagged_text and create the windows based on it
+    while i < tagged_text_size:
+
+        # Checks if the current word is a verb and checks if it's infinitive form is present on the dict of wanted verbs
+        if tagged_text[i][1].startswith('V') and (not enable_verb_filter or
+           lemmatizer.lemmatize(tagged_text[i][0], 'v') in cts.verbs_to_keep):
+            # Dumb but functional method to prevent windows from exceed the 'tagged-text' array's boundaries
+            if i - begin_offset < 0 or i + end_offset >= tagged_text_size:
+                if i - begin_offset < 0:
+                    start = 0
+                    end = i + end_offset
+                else:
+                    start = i - begin_offset
+                    end = tagged_text_size - 1
+            # The else holds the code for a regular execution
+            else:
+                start = i - begin_offset
+                end = i + end_offset
+
+            # Adds a window to the windows variables
+            temp_list = [tagged_text[start:end], i-start]
+            windows.append(temp_list.copy())
+
+        i += 1
+
+    print("tokens_to_centralized_windows ended")
+
+    return windows
+
+'''
+Below are functions that deal with the reading, opening and saving of xlsx archives
+'''
 
 def create_workbook(name):
     #  Creates and return a Workbook with a chosen "name"
@@ -95,128 +202,54 @@ def write_cooc_matrix(row_index_name_dict, column_index_name_dict, cooc_matrix, 
     column_len = len(column_index_name_dict)
 
     for i in range(row_len):
-        worksheet.write(i + 1, 0, row_index_name_dict[i])
-
-    for j in range(column_len):
-        worksheet.write(0, j + 1, column_index_name_dict[j])
-
-    for i in range(row_len):
         for j in range(column_len):
-            worksheet.write(i + 1, j + 1, cooc_matrix[i][j])
-
-
-def tokens_to_windows(tokens, window_size):
-    """
-    Transform a tokenized text into a series of windows for them to serve as contexts
-    :param tokens: A python list containing the tokenized text
-    :param window_size: The wanted window size
-    :return: A python list containing the "tokens" separated in windows
-    """
-    i = 0
-    tagged_text_size = len(tokens)
-    temp_list = []
-    windows = []
-    while i < tagged_text_size:
-        temp_list.append(tokens[i])
-        if (i + 1) % window_size == 0:
-            windows.append(temp_list.copy())
-            temp_list.clear()
-        i += 1
-
-    if tagged_text_size % window_size != 0:
-        windows.append(temp_list.copy())
-
-    return windows
-
-
-def tokens_to_centralized_windows(tagged_text, window_size):
-    """
-    This function is other windowing method. It will find the desired verbs and make windows around them. The windows
-    can overlap, its normal.
-    :param tagged_text: A list of tuples. The contents of the tuples are two string, the first being the word and the
-    second being the tag related to the word
-    :param window_size: It is an integer that indicates the wanted size of the windows
-    :return: Returns a list of lists. Each inner list is a window containing the word-tag tuples
-    """
-    tagged_text_size = len(tagged_text)
-    windows = []
-
-    lemmatizer = nltk.stem.WordNetLemmatizer()
-
-    # Checks if the 'window_size' value is even or odd
-    is_even = False
-    if window_size % 2 == 0:
-        is_even = True
-
-    # Based of the window size being even or odd the code below calculates the right and left offsets from the central
-    # element of the window, that is the wanted verbs in this case
-    begin_offset = window_size // 2
-    if is_even:
-        end_offset = (window_size // 2) - 1
-    else:
-        end_offset = (window_size // 2)
-
-    i = 0
-    # Iterates over the tagged_text and create the windows based on it
-    while i < tagged_text_size:
-
-        # Checks if the current word is a verb and checks if it's infinitive form is present on the dict of wanted verbs
-        if tagged_text[i][1].startswith('V') and lemmatizer.lemmatize(tagged_text[i][0], 'v') in verbs_to_keep:
-            # Dumb but functional method to prevent windows from exceed the 'tagged-text' array's boundaries
-            if i - begin_offset < 0 or i + end_offset >= tagged_text_size:
-                if i - begin_offset < 0:
-                    start = 0
-                    end = i + end_offset
-                else:
-                    start = i - begin_offset
-                    end = tagged_text_size - 1
-            # The else holds the code for a regular execution
+            if i == 0:
+                worksheet.write(i, j + 1, column_index_name_dict[j])
+            elif j == 0:
+                worksheet.write(i, j, row_index_name_dict[i])
             else:
-                start = i - begin_offset
-                end = i + end_offset
-
-            # Adds a window to the windows variables
-            temp_list = tagged_text[start:end]
-            windows.append(temp_list.copy())
-
-        i += 1
-
-    return windows
+                worksheet.write(i, j, cooc_matrix[i][j])
 
 
-def invert_dictionary(dictionary):
-    return dict(zip(dictionary.values(), dictionary.keys()))
+def write_verb_filtered_arrays(nouns_from_verb_arrays, verb_filtered_arrays, worksheet, workbook):
 
 
-def plot_vectors(vec1_coord, vec2_coord, vec1_name, vec2_name, verb1_name, verb2_name):
-    # Pyplot method to clear the old drawings
-    plt.gcf().clear()
+    xlsx_column = 0
 
-    # Calculate the module of the arrays
-    vec1_module = np.sqrt(np.power(vec1_coord[0], 2) + np.power(vec1_coord[1], 2))
-    vec2_module = np.sqrt(np.power(vec2_coord[0], 2) + (np.power(vec2_coord[1], 2)))
+    verbs = verb_filtered_arrays.keys()
 
-    # Pyplot quiver plot to show the word vectors
-    plt.quiver([0, 0], [0, 0], [vec1_coord[0]/vec1_module, vec2_coord[0]/vec2_module],
-               [vec1_coord[1]/vec1_module, vec2_coord[1]/vec2_module], color=['r', 'g'], angles='xy',
-               scale_units='xy', scale=1)
+    format = workbook.add_format({'bg_color': 'green'})
 
-    # Calculates the axis limits (x_begin, x_end, y_begin, y_end)
-    plt.axis([0, 1, 0, 1])
+    for verb in verbs:
 
-    # The plotted vector's legends
-    lgd_red = mpatches.Patch(color='red', label=vec1_name)
-    lgd_green = mpatches.Patch(color='green', label=vec2_name)
+        nouns = nouns_from_verb_arrays[verb]
+        nouns_lenght = len(nouns)
 
-    # Adding the legends to the plot handler
-    plt.legend(handles=[lgd_red, lgd_green])
+        xlsx_row = 1
 
-    # Adding labels to the axis
-    plt.xlabel(verb1_name)
-    plt.ylabel(verb2_name)
+        for noun in nouns:
+            worksheet.write(xlsx_row, xlsx_column, noun)
+            xlsx_row += 1
 
-    # Shows the plot in a window but does not blocks this thread (the 'False' parameter is for the blocking option)
-    plt.show(False)
+        xlsx_row = 0
+        xlsx_column += 1
+        worksheet.write(xlsx_row, xlsx_column, verb)
+        xlsx_row = 1
+
+        values = verb_filtered_arrays[verb]
+
+        for value in values:
+            worksheet.write(xlsx_row, xlsx_column, value)
+            xlsx_row += 1
+
+        xlsx_row = 0
+        xlsx_column += 2
+
+        for i in range(nouns_lenght):
+            worksheet.write_blank(xlsx_row, xlsx_column, '', format)
+            xlsx_row += 1
+
+        xlsx_column += 2
 
 
 def get_column_names(rows, verb_columns):
@@ -250,6 +283,44 @@ def complete_the_loading(rows, noun_rows, matrix):
         i += 1
 
 
+def readAllNouns():
+    wb = pd.ExcelFile(cts.sep + 'home' + cts.sep + 'paulojeunon' + cts.sep + 'Desktop' + cts.sep +
+                      'All nouns_for hypernyms.xlsx')
+    sheet = wb.parse("all nouns")
+    noun_list = sheet['Active nouns'].values.tolist().copy()
+    department_list = sheet['Department'].values.tolist().copy()
+
+    wb2 = pd.ExcelFile(cts.sep + 'home' + cts.sep + 'paulojeunon' + cts.sep + 'Desktop' + cts.sep +
+                      'All_nouns_for_hypernyms_Copia.xlsx')
+    sheet2 = wb2.parse("all nouns")
+    full_noun_list = sheet2['Entities'].values.tolist().copy()
+    synset_list = sheet2['SUMO word ID'].values.tolist().copy()
+
+    lemmatizer = nltk.stem.WordNetLemmatizer()
+
+    for i in range(len(noun_list)):
+        noun_list[i] = noun_list[i].lower()
+        noun_list[i] = lemmatizer.lemmatize(noun_list[i])
+
+    i = 0
+    whileSize = len(noun_list)
+    while i < whileSize:
+        if synset_list[i] == 0:
+            print(synset_list[i])
+            del synset_list[i]
+            del full_noun_list[i]
+            del noun_list[i]
+            del department_list[i]
+            i -= 1
+            whileSize -= 1
+        i += 1
+
+    content_dict = {"full_noun_list": full_noun_list, "noun_list": noun_list, "department_list": department_list,
+                    "synset_list": synset_list}
+
+    return content_dict
+
+
 def load_from_wb(workbook_name):
     """
     Function used to load the matrix data from a xlsx archive. It is faster then generating it from text
@@ -262,7 +333,6 @@ def load_from_wb(workbook_name):
 
     # Load worksheets
     ws = wb['cooc_matrix_full']
-    ws_filtered = wb['cooc_matrix_filtered']
     ws_soc_pmi = wb['soc_pmi_matrix']
 
     # Calculate the matrix dimensions and transform the excel's coordinates to matrix coordinates (to only integers)
@@ -283,21 +353,6 @@ def load_from_wb(workbook_name):
     complete_the_loading(rows, noun_rows, matrix)
     print('complete_the_loading completed')
 
-    rows = ws_filtered.rows
-    matrix_dim = ws_filtered.calculate_dimension().split(':')
-    rows_count = coordinate_from_string(matrix_dim[1])[1] - 1
-    column_count = column_index_from_string(coordinate_from_string(matrix_dim[1])[0]) - 1
-
-    filtered_matrix = np.empty((rows_count, column_count))
-
-    filtered_noun_rows = {}
-    filtered_verb_columns = {}
-
-    get_column_names(rows, filtered_verb_columns)
-    print('get_column_names completed 2')
-    complete_the_loading(rows, filtered_noun_rows, filtered_matrix)
-    print('complete_the_loading completed 2')
-
     rows = ws_soc_pmi.rows
     matrix_dim = ws_soc_pmi.calculate_dimension().split(':')
     rows_count = coordinate_from_string(matrix_dim[1])[1] - 1
@@ -314,14 +369,52 @@ def load_from_wb(workbook_name):
     print('complete_the_loading completed 2')
 
     content = {'matrix': matrix, 'noun_rows': noun_rows, 'verb_columns': verb_columns,
-               'filtered_matrix': filtered_matrix, 'filtered_noun_rows': filtered_noun_rows,
-               'filtered_verb_columns': filtered_verb_columns, 'soc_pmi_matrix': soc_pmi_matrix,
-               'soc_pmi_noun_rows': soc_pmi_noun_rows, 'soc_pmi_verb_columns': soc_pmi_verb_columns}
+               'soc_pmi_matrix': soc_pmi_matrix, 'soc_pmi_noun_rows': soc_pmi_noun_rows,
+               'soc_pmi_verb_columns': soc_pmi_verb_columns}
 
     return content
 
+'''
+Below are functions related to graphics
+'''
 
-def save_tagged_words(tagged_text, file_name=path_to_txtFolder+'tagged_text.txt', encoding='utf8'):
+def plot_vectors(vec1_coord, vec2_coord, vec1_name, vec2_name, verb1_name, verb2_name):
+    # Pyplot method to clear the old drawings
+    plt.gcf().clear()
+
+    # Calculate the module of the arrays
+    vec1_module = np.sqrt(np.power(vec1_coord[0], 2) + np.power(vec1_coord[1], 2))
+    vec2_module = np.sqrt(np.power(vec2_coord[0], 2) + (np.power(vec2_coord[1], 2)))
+
+    # Pyplot quiver plot to show the word vectors
+    plt.quiver([0, 0], [0, 0], [vec1_coord[0]/vec1_module, vec2_coord[0]/vec2_module],
+               [vec1_coord[1]/vec1_module, vec2_coord[1]/vec2_module], color=['r', 'g'], angles='xy',
+               scale_units='xy', scale=1)
+
+    # Calculates the axis limits (x_begin, x_end, y_begin, y_end)
+    plt.axis([0, 1, 0, 1])
+
+    # The plotted vector's legends
+    lgd_red = mpatches.Patch(color='red', label=vec1_name)
+    lgd_green = mpatches.Patch(color='green', label=vec2_name)
+
+    # Adding the legends to the plot handler
+    plt.legend(handles=[lgd_red, lgd_green])
+
+    # Adding labels to the axis
+    plt.xlabel(verb1_name)
+    plt.ylabel(verb2_name)
+
+    # Shows the plot in a window but does not blocks this thread (the 'False' parameter is for the blocking option)
+    plt.show(False)
+
+
+'''
+Below are functions related to saving in text archives
+'''
+
+
+def save_tagged_words(tagged_text, file_name=cts.path_to_txtFolder+'tagged_text.txt', encoding='utf8'):
     """
     Saves a list of tuples in a file. Each tuple contains two strings, the first for the word and the second for
     it's tag. This function is used to generate a file in the txtFiles folder. Use this file to check the POSTagger
@@ -337,5 +430,132 @@ def save_tagged_words(tagged_text, file_name=path_to_txtFolder+'tagged_text.txt'
     f2.close()
 
 
-def pause():
-    input('Press enter to continue')
+'''
+Below are functions related to create gdf archives 
+'''
+
+
+def save_noun_sim_matrix_in_gdf(cooc_matrix, noun_dict, methods, output_file_path, book_name):
+
+    output_files = []
+    for method in methods:
+        output_files.append(open(output_file_path + book_name + '_' + method + '.gdf', 'w'))
+
+    for output_file_index in range(len(output_files)):
+        print('Creating the graph archives ... current progress = ' + str(output_file_index) + '/' +
+              str(len(output_files)))
+
+        output_files[output_file_index].write('nodedef>name VARCHAR')
+
+        for i in range(17):
+            output_files[output_file_index].write(', verb' + str(i) + ' VARCHAR')
+
+        output_files[output_file_index].write('\n')
+
+        for noun_key in noun_dict:
+            output_files[output_file_index].write(noun_key)
+            still_have_verbs_to_fill = 16
+            for verb_key, verb_column in cooc_matrix.verb_columns.items():
+                curr_row = cooc_matrix.noun_rows[noun_key]
+                if cooc_matrix.matrix[curr_row][verb_column] > 0 and still_have_verbs_to_fill > 0:
+                    output_files[output_file_index].write(', ' + verb_key)
+                    still_have_verbs_to_fill -= 1
+
+            for i in range(still_have_verbs_to_fill):
+                output_files[output_file_index].write(', ')
+
+            output_files[output_file_index].write('\n')
+
+
+        output_files[output_file_index].write('edgedef>node1 VARCHAR, node2 VARCHAR, weight FLOAT\n')
+
+        inverted_noun_dict = invert_dictionary(noun_dict)
+
+        curr_matrix = cooc_matrix.noun_to_noun_sim_matrices[methods[output_file_index]]
+
+        i = 0
+        while i < curr_matrix.shape[0] - 1:
+
+            j = i + 1
+            while j < curr_matrix.shape[0]:
+
+                output_files[output_file_index].write(inverted_noun_dict[i] + ',' + inverted_noun_dict[j] + ',' +
+                                                      str(curr_matrix[i][j]) + '\n')
+                j += 1
+
+            print('archive: ' + str(i))
+            i += 1
+
+
+def save_noun_sim_matrix_in_gdf_2(noun_to_noun_sim_matrices, noun_list, department_list, methods, output_file_path,
+                                  source_name):
+
+    output_files = []
+    for method in methods:
+        output_files.append(open(output_file_path + source_name + '_' + method + '.gdf', 'w'))
+
+    for output_file_index in range(len(output_files)):
+        print('Creating the graph archives ... current progress = ' + str(output_file_index+1) + '/' +
+              str(len(output_files)))
+
+        output_files[output_file_index].write('nodedef>name VARCHAR, color VARCHAR\n')
+
+
+        for (noun, department) in zip(noun_list, department_list):
+            output_files[output_file_index].write(noun)
+            color = "#000000"
+            if department == "Chemical":
+                color = "#000080"
+            elif department == "Civil":
+                color = "#ff0000"
+            elif department == "Computational":
+                color = "#228b22"
+            elif department == "Electrical":
+                color = "#ffff00"
+            elif department == "Materials":
+                color = "#ff1493"
+            elif department == "Mechanical":
+                color = "#8b4513"
+            elif department == "Mining":
+                color = "#ffa500"
+            elif department == "Petroleum":
+                color = "#778899"
+
+            output_files[output_file_index].write(", " + color + "\n")
+
+        output_files[output_file_index].write('edgedef>node1 VARCHAR, node2 VARCHAR, weight FLOAT\n')
+
+        curr_matrix = noun_to_noun_sim_matrices[output_file_index]
+
+        print("matrixShape = " + str(curr_matrix.shape[0]))
+
+        i = 0
+        while i < curr_matrix.shape[0] - 1:
+
+            j = i + 1
+            while j < curr_matrix.shape[0]:
+
+                output_files[output_file_index].write(noun_list[i] + ',' + noun_list[j] + ',' +
+                                                      str(curr_matrix[i][j]) + '\n')
+                j += 1
+
+            print('archive: ' + str(i))
+            i += 1
+
+
+'''
+Below are general use functions
+'''
+
+
+def invert_dictionary(dictionary):
+    return dict(zip(dictionary.values(), dictionary.keys()))
+
+
+def limit_value(value, min_value, max_value):
+    if value > max_value:
+        value = max_value
+    elif value < min_value:
+        value = min_value
+
+    return value

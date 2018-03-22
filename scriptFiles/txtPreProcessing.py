@@ -16,14 +16,24 @@ def complete_filter(input_file_name, output_discarded_words=False, encoding='utf
     temp_text = treat_strange_symbols(temp_text)
     print('treat_strange_symbols ... done')
 
-    output_dict = only_english_words(temp_text, output_discarded_words)
-    print('only_english_words ... done')
+    tokens = nltk.tokenize.RegexpTokenizer(r'\w+').tokenize(temp_text)
 
-    for key in output_dict.keys():
-        output_file = open('..\\txtFiles\\' + source_txt_name + '_' + key + '.txt', 'w', encoding=encoding)
-        output_file.write(output_dict[key])
-        output_file.close()
+    final_text = ''
+    for token in tokens:
+        if len(token) >= 2:
+            final_text += token + ' '
 
+    # output_dict = only_english_words(temp_text, output_discarded_words)
+    # print('only_english_words ... done')
+
+    # for key in output_dict.keys():
+    #     output_file = open('..\\txtFiles\\' + source_name + '_' + key + '.txt', 'w', encoding=encoding)
+    #     output_file.write(output_dict[key])
+    #     output_file.close()
+
+    output_file = open('..\\txtFiles\\' + source_name + '_' + 'filtered_txt_output' + '.txt', 'w', encoding=encoding)
+    output_file.write(final_text)
+    output_file.close()
 
 def only_english_words(raw_text, output_discarded_words):
 
@@ -36,7 +46,7 @@ def only_english_words(raw_text, output_discarded_words):
     tokens = nltk.tokenize.RegexpTokenizer(r'\w+').tokenize(raw_text)
 
     for token in tokens:
-        if en_dict.check(token):
+        if en_dict.check(token) and len(token) >= 3:
             output_dict['filtered_txt_output'] += token + ' '
         elif output_discarded_words:
             output_dict['filtered_txt_output_discarded'] += token + ' '
