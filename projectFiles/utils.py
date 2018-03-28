@@ -290,7 +290,7 @@ def complete_the_loading(rows, noun_rows, matrix):
 def read_all_stages():
     content_dict = {}
 
-    wb = pd.ExcelFile(cts.path_to_desktop + 'All_nouns_for_hypernyms_Copia.xlsx')
+    wb = pd.ExcelFile(cts.path_to_interview_xlsx+ 'All_nouns_for_hypernyms_Copia.xlsx')
 
     wb2 = pd.ExcelFile(cts.path_to_desktop + 'list_of_verbs.xlsx')
     sheet2 = wb2.parse('sheet2')
@@ -348,7 +348,7 @@ def read_all_stages():
 
 
 def read_all_nouns():
-    wb = pd.ExcelFile(cts.path_to_desktop + 'All_nouns_for_hypernyms_Copia.xlsx')
+    wb = pd.ExcelFile(cts.path_to_interview_xlsx + 'All_nouns_for_hypernyms_Copia.xlsx')
     sheet = wb.parse("all nouns")
     noun_list = sheet['Active nouns'].values.tolist().copy()
     department_list = sheet['Department'].values.tolist().copy()

@@ -1,7 +1,6 @@
 import projectFiles.matrixutils as mu
 import projectFiles.utils as utils
 import projectFiles.constants as cts
-import os
 
 
 def load_from_txt(txt_input_path, encoding, save_in_xlsx, workbook_name, enable_verb_filter, enable_lemmatization):

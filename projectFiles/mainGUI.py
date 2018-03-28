@@ -20,7 +20,7 @@ class MainGUI(Tk):
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
 
         self.path_to_txt = cts.path_to_txtFolder
-        self.path_to_xlsx = cts.path_to_xlsxFolder
+        self.path_to_xlsx = cts.path_to_generated_xlsx
 
         self.cooc_matrix_vector_plotter = None
 
