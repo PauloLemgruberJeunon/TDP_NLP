@@ -8,3 +8,6 @@ venv*
 *.rar
 *.zip
 *.jar
+.sigmakee
+sigmakee
+*.gephi

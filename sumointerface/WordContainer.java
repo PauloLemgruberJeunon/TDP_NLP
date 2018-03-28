@@ -7,15 +7,17 @@ public class WordContainer implements Comparable{
 	private String _reducedWord = "";
 	private String _synset = "";
 	private String _hexColor = "#000000";
+	private String _verb = "";
 
  	public WordContainer() {
 
  	}
 
-	public WordContainer(String fullWord, String reducedWord, String synset) {
+	public WordContainer(String fullWord, String reducedWord, String synset, String verb) {
 		_fullWord = fullWord;
 		_reducedWord = reducedWord;
 		_synset = synset;
+		_verb = verb;
 	}
 
 	public WordContainer(WordContainer wc) {
@@ -23,6 +25,7 @@ public class WordContainer implements Comparable{
 		_reducedWord = wc.getReducedWord();
 		_synset = wc.getSynset();
 		_hexColor = wc.getHexColor();
+		_verb = wc.getVerb();
 	}
 
 	public int compareTo(Object wdContainer) throws ClassCastException {
@@ -48,6 +51,10 @@ public class WordContainer implements Comparable{
 		return _hexColor;
 	}
 
+	public String getVerb() {
+		return _verb;
+	}
+
 	public void setFullWord(String fullWord) {
 		_fullWord = fullWord;
 	}
@@ -62,6 +69,10 @@ public class WordContainer implements Comparable{
 
 	public void setHexColor(String hexColor) {
 		_hexColor = hexColor;
+	}
+
+	public void setVerb(String verb) {
+		_verb = verb;
 	}
 
 }

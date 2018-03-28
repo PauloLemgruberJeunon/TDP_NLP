@@ -1,4 +1,3 @@
-from py4j.java_gateway import JavaGateway
 import projectFiles.matrixutils as mu
 import projectFiles.utils as utils
 import projectFiles.constants as cts
@@ -65,7 +64,7 @@ def load_from_txt(txt_input_path, encoding, save_in_xlsx, workbook_name, enable_
     cooc_matrix.noun_to_noun_sim_matrices = mu.calculate_sim_matrix_from_list(list(cooc_matrix.noun_rows.keys()),
                                                                               cts.all_semantic_similarity_methods)
     utils.save_noun_sim_matrix_in_gdf(cooc_matrix , cooc_matrix.noun_rows, cts.all_semantic_similarity_methods,
-                                      cts.path_to_txtFolder, 'PDandD')
+                                      'PDandD')
 
     return cooc_matrix.plot_two_word_vectors
 
@@ -77,55 +76,26 @@ def load_from_xlsx(xlsx_file_path):
     return cooc_matrix.plot_two_word_vectors
 
 
-def main():
-    content_dict = utils.readAllNouns()
-    executeJava(content_dict["noun_list"], content_dict["department_list"], content_dict["full_noun_list"],
-                content_dict["synset_list"])
-
-    # noun_to_noun_sim_matrices = mu.calculate_sim_matrix_from_list(content_dict["noun_list"])
-    # methods = ('wup', 'lch', 'jcn', 'lin', 'average_similarity')
-    # utils.save_noun_sim_matrix_in_gdf_2(noun_to_noun_sim_matrices, content_dict["noun_list"],
-    #                                     content_dict["department_list"], methods, os.getcwd() + '\\..\\txtFiles\\',
-    #                                     'fromXLSX')
+def semantic_similarity_interview_graph():
+    methods = ('wup', 'lch', 'jcn', 'lin', 'average_similarity')
+    content_dict = utils.read_all_nouns()
+    noun_to_noun_sim_matrices = mu.calculate_sim_matrix_from_list(content_dict["noun_list"], methods)
+    utils.save_noun_sim_matrix_in_gdf_2(noun_to_noun_sim_matrices, content_dict["noun_list"],
+                                        content_dict["department_list"], methods, 'fromXLSX')
 
 
-def executeJava(noun_list, department_list, full_noun_list, synset_list):
-    gateway = JavaGateway()
-    word_container_list  = gateway.jvm.java.util.ArrayList()
+def hypernym_interview_graph(all_stages=False):
 
-    i = 0
-    for i in range(len(noun_list)):
-        print(i)
-        word_countainer = gateway.jvm.WordContainer()
-        word_countainer.setFullWord(full_noun_list[i])
-        word_countainer.setReducedWord(noun_list[i])
-        word_countainer.setSynset(str(synset_list[i]).strip())
-        curr_dept = department_list[i]
-        color = "#000000"
-        if curr_dept == "Chemical":
-            color = "#000080"
-        elif curr_dept == "Civil":
-            color = "#ff0000"
-        elif curr_dept == "Computational":
-            color = "#228b22"
-        elif curr_dept == "Electrical":
-            color = "#ffff00"
-        elif curr_dept == "Materials":
-            color = "#ff1493"
-        elif curr_dept == "Mechanical":
-            color = "#8b4513"
-        elif curr_dept == "Mining":
-            color = "#ffa500"
-        elif curr_dept == "Petroleum":
-            color = "#778899"
-        word_countainer.setHexColor(color)
+    if all_stages:
+        stages_dict = utils.read_all_stages()
 
-        word_container_list.add(word_countainer)
+        for stage in stages_dict.keys():
+            curr_stage_dict = stages_dict[stage]
+            utils.executeJava(curr_stage_dict["noun_list"], curr_stage_dict["department_list"],
+                              curr_stage_dict["full_noun_and_verb_list"], curr_stage_dict["synset_list"], stage)
+    else:
+        content_dict = utils.read_all_nouns()
+        utils.executeJava(content_dict["noun_list"], content_dict["department_list"],
+                          content_dict["full_noun_and_verb_list"], content_dict["synset_list"], 'all_nouns')
 
-    WordGraph = gateway.entry_point
-    WordGraph.startWordGraph(word_container_list, cts.sep + "home" + cts.sep + "paulojeunon" + cts.sep +
-                             "Desktop" + cts.sep + "hyperGraph.gdf")
-
-
-if __name__ == "__main__":
-    main()
+hypernym_interview_graph()

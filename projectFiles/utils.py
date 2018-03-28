@@ -11,11 +11,15 @@ from openpyxl.utils import coordinate_from_string, column_index_from_string
 
 import numpy as np
 
+import math
+
 import matplotlib.patches as mpatches
 from matplotlib import pyplot as plt
 
 import nltk
 from nltk.tag.stanford import CoreNLPPOSTagger
+
+from py4j.java_gateway import JavaGateway
 
 '''
 Below are functions called by the main.py file and are the start of the noun extraction process from books and xlsx
@@ -283,18 +287,78 @@ def complete_the_loading(rows, noun_rows, matrix):
         i += 1
 
 
-def readAllNouns():
-    wb = pd.ExcelFile(cts.sep + 'home' + cts.sep + 'paulojeunon' + cts.sep + 'Desktop' + cts.sep +
-                      'All nouns_for hypernyms.xlsx')
+def read_all_stages():
+    content_dict = {}
+
+    wb = pd.ExcelFile(cts.path_to_desktop + 'All_nouns_for_hypernyms_Copia.xlsx')
+
+    wb2 = pd.ExcelFile(cts.path_to_desktop + 'list_of_verbs.xlsx')
+    sheet2 = wb2.parse('sheet2')
+
+    for i in range(1,7):
+        curr_sheet = wb.parse("stage " + str(i))
+        noun_list = curr_sheet['Active nouns'].values.tolist().copy()
+        department_list = curr_sheet['Department'].values.tolist().copy()
+        full_noun_and_verb_list = curr_sheet['Entities'].values.tolist().copy()
+        synset_list = curr_sheet['SUMO word ID'].values.tolist().copy()
+
+        j = 0
+        loop_size = len(noun_list)
+
+        while j < loop_size:
+            if isinstance(synset_list[j], float):
+                if math.isnan(synset_list[j]):
+                    synset_list[j] = 0.0
+
+            if isinstance(noun_list[j], str) == False:
+                del noun_list[j:]
+                del department_list[j:]
+                del full_noun_and_verb_list[j:]
+                del synset_list[j:]
+                break
+            j += 1
+
+        synset_list = [int(k) for k in synset_list]
+
+        print('STAGE ' + str(i))
+        print('noun_list_length = ' + str(len(noun_list)))
+        print(noun_list)
+        print('')
+
+        print('department_list_length = ' + str(len(department_list)))
+        print(department_list)
+        print('')
+
+        print('full_noun_and_verb_list_length = ' + str(len(full_noun_and_verb_list)))
+        print(full_noun_and_verb_list)
+        print('')
+
+        print('synset_list_length = ' + str(len(synset_list)))
+        print(synset_list)
+        print('\n\n')
+
+        find_associated_verbs_in_xlsx_sheet(full_noun_and_verb_list, sheet2)
+
+        content_dict['stage' + str(i)] = {'noun_list': noun_list, 'department_list': department_list,
+                                          'synset_list': synset_list,
+                                          'full_noun_and_verb_list': full_noun_and_verb_list}
+
+    return content_dict
+
+
+
+def read_all_nouns():
+    wb = pd.ExcelFile(cts.path_to_desktop + 'All_nouns_for_hypernyms_Copia.xlsx')
     sheet = wb.parse("all nouns")
     noun_list = sheet['Active nouns'].values.tolist().copy()
     department_list = sheet['Department'].values.tolist().copy()
+    full_noun_and_verb_list = sheet['Entities'].values.tolist().copy()
+    synset_list = sheet['SUMO word ID'].values.tolist().copy()
 
-    wb2 = pd.ExcelFile(cts.sep + 'home' + cts.sep + 'paulojeunon' + cts.sep + 'Desktop' + cts.sep +
-                      'All_nouns_for_hypernyms_Copia.xlsx')
-    sheet2 = wb2.parse("all nouns")
-    full_noun_list = sheet2['Entities'].values.tolist().copy()
-    synset_list = sheet2['SUMO word ID'].values.tolist().copy()
+    wb3 = pd.ExcelFile(cts.path_to_desktop + 'list_of_verbs.xlsx')
+    sheet3 = wb3.parse('sheet2')
+
+    find_associated_verbs_in_xlsx_sheet(full_noun_and_verb_list, sheet3)
 
     lemmatizer = nltk.stem.WordNetLemmatizer()
 
@@ -305,20 +369,31 @@ def readAllNouns():
     i = 0
     whileSize = len(noun_list)
     while i < whileSize:
-        if synset_list[i] == 0:
-            print(synset_list[i])
-            del synset_list[i]
-            del full_noun_list[i]
-            del noun_list[i]
-            del department_list[i]
-            i -= 1
-            whileSize -= 1
+        noun_list[i] = noun_list[i].replace(" ", "")
+
+        if isinstance(synset_list[i], float):
+            if math.isnan(synset_list[i]):
+                synset_list[i] = 0
+
         i += 1
 
-    content_dict = {"full_noun_list": full_noun_list, "noun_list": noun_list, "department_list": department_list,
-                    "synset_list": synset_list}
+    synset_list = [int(k) for k in synset_list]
+
+    content_dict = {"full_noun_and_verb_list": full_noun_and_verb_list, "noun_list": noun_list,
+                    "department_list": department_list, "synset_list": synset_list}
 
     return content_dict
+
+
+def find_associated_verbs_in_xlsx_sheet(full_noun_and_verb_list, sheet):
+    for i in range(1, 12):
+        temp_noun_list = sheet['Nouns' + str(i)].values.tolist().copy()
+        temp_verb_list = sheet['Verbs' + str(i)].values.tolist().copy()
+
+        for j in range(len(full_noun_and_verb_list)):
+            for k in range(len(temp_noun_list)):
+                if full_noun_and_verb_list[j] == temp_noun_list[j]:
+                    full_noun_and_verb_list[j] = (full_noun_and_verb_list[j], '[' + temp_verb_list[j] + ']')
 
 
 def load_from_wb(workbook_name):
@@ -374,16 +449,18 @@ def load_from_wb(workbook_name):
 
     return content
 
+
 '''
 Below are functions related to graphics
 '''
+
 
 def plot_vectors(vec1_coord, vec2_coord, vec1_name, vec2_name, verb1_name, verb2_name):
     # Pyplot method to clear the old drawings
     plt.gcf().clear()
 
     # Calculate the module of the arrays
-    vec1_module = np.sqrt(np.power(vec1_coord[0], 2) + np.power(vec1_coord[1], 2))
+    vec1_module = np.sqrt(np.power(vec1_coord[0], 2) + (np.power(vec1_coord[1], 2)))
     vec2_module = np.sqrt(np.power(vec2_coord[0], 2) + (np.power(vec2_coord[1], 2)))
 
     # Pyplot quiver plot to show the word vectors
@@ -435,11 +512,11 @@ Below are functions related to create gdf archives
 '''
 
 
-def save_noun_sim_matrix_in_gdf(cooc_matrix, noun_dict, methods, output_file_path, book_name):
+def save_noun_sim_matrix_in_gdf(cooc_matrix, noun_dict, methods, book_name):
 
     output_files = []
     for method in methods:
-        output_files.append(open(output_file_path + book_name + '_' + method + '.gdf', 'w'))
+        output_files.append(open(cts.path_to_gdfFolder + book_name + '_' + method + '.gdf', 'w'))
 
     for output_file_index in range(len(output_files)):
         print('Creating the graph archives ... current progress = ' + str(output_file_index) + '/' +
@@ -466,7 +543,6 @@ def save_noun_sim_matrix_in_gdf(cooc_matrix, noun_dict, methods, output_file_pat
 
             output_files[output_file_index].write('\n')
 
-
         output_files[output_file_index].write('edgedef>node1 VARCHAR, node2 VARCHAR, weight FLOAT\n')
 
         inverted_noun_dict = invert_dictionary(noun_dict)
@@ -487,19 +563,18 @@ def save_noun_sim_matrix_in_gdf(cooc_matrix, noun_dict, methods, output_file_pat
             i += 1
 
 
-def save_noun_sim_matrix_in_gdf_2(noun_to_noun_sim_matrices, noun_list, department_list, methods, output_file_path,
+def save_noun_sim_matrix_in_gdf_2(noun_to_noun_sim_matrices, noun_list, department_list, methods,
                                   source_name):
 
     output_files = []
     for method in methods:
-        output_files.append(open(output_file_path + source_name + '_' + method + '.gdf', 'w'))
+        output_files.append(open(cts.path_to_gdfFolder + source_name + '_' + method + '.gdf', 'w'))
 
     for output_file_index in range(len(output_files)):
         print('Creating the graph archives ... current progress = ' + str(output_file_index+1) + '/' +
               str(len(output_files)))
 
         output_files[output_file_index].write('nodedef>name VARCHAR, color VARCHAR\n')
-
 
         for (noun, department) in zip(noun_list, department_list):
             output_files[output_file_index].write(noun)
@@ -525,7 +600,7 @@ def save_noun_sim_matrix_in_gdf_2(noun_to_noun_sim_matrices, noun_list, departme
 
         output_files[output_file_index].write('edgedef>node1 VARCHAR, node2 VARCHAR, weight FLOAT\n')
 
-        curr_matrix = noun_to_noun_sim_matrices[output_file_index]
+        curr_matrix = noun_to_noun_sim_matrices[methods[output_file_index]]
 
         print("matrixShape = " + str(curr_matrix.shape[0]))
 
@@ -559,3 +634,46 @@ def limit_value(value, min_value, max_value):
         value = min_value
 
     return value
+
+'''
+Below are Java interface functions
+'''
+
+def executeJava(noun_list, department_list, full_noun_and_verb_list, synset_list, sheet_name):
+    gateway = JavaGateway()
+    word_container_hashmap = gateway.jvm.java.util.HashMap()
+
+    for i in range(len(noun_list)):
+        print(i)
+        word_countainer = gateway.jvm.WordContainer()
+        word_countainer.setFullWord(full_noun_and_verb_list[i][0])
+        word_countainer.setVerb(full_noun_and_verb_list[i][1])
+        word_countainer.setReducedWord(noun_list[i])
+        word_countainer.setSynset(str(synset_list[i]).strip())
+        curr_dept = department_list[i]
+        color = "#000000"
+        if curr_dept == "Chemical":
+            color = "#000080"
+        elif curr_dept == "Civil":
+            color = "#ff0000"
+        elif curr_dept == "Computational":
+            color = "#228b22"
+        elif curr_dept == "Electrical":
+            color = "#ffff00"
+        elif curr_dept == "Materials":
+            color = "#ff1493"
+        elif curr_dept == "Mechanical":
+            color = "#8b4513"
+        elif curr_dept == "Mining":
+            color = "#ffa500"
+        elif curr_dept == "Petroleum":
+            color = "#778899"
+        word_countainer.setHexColor(color)
+
+        word_container_hashmap.put(word_countainer.getSynset(), word_countainer)
+
+    word_graph_handler = gateway.entry_point
+    word_graph = word_graph_handler.getWordGraph(word_container_hashmap,
+                                                 cts.path_to_gdfFolder + sheet_name + "_hyperGraph.gdf")
+
+    word_graph.startWordGraph()

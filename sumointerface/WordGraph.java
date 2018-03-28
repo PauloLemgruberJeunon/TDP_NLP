@@ -31,27 +31,31 @@ public class WordGraph {
 		}
 	}
 
+
+	private String _filePathAndName = null;
 	private HashMap<String, WordContainer> _wordsAndSynsets = null;
 	private HashMap<String, WordContainer> _nodes = null;
 	private ArrayList<Edge> _edges = null;
 
-	public WordGraph() {
+	public WordGraph(HashMap<String, WordContainer> wordsAndSynsets, String filePathAndName) {
+
+		setWordGraphNewInputs(wordsAndSynsets, filePathAndName);
+
 		_nodes = new HashMap<String, WordContainer>();
 		_edges = new ArrayList<Edge>();
 
 		WordNet.initOnce();
 	}
 
-	public void startWordGraph(HashMap<String, WordContainer> wordsAndSynsets, String filePathAdName) {
+	public void startWordGraph() {
 
-		_wordsAndSynsets = wordsAndSynsets;
-		GDFPrinter gdfPrinter = new GDFPrinter(filePathAdName, "UTF-8"); 
+		GDFPrinter gdfPrinter = new GDFPrinter(_filePathAndName, "UTF-8"); 
 
-		gdfPrinter.printGDFHeader("name VARCHAR, fullName VARCHAR, reducedName VARCHAR, color VARCHAR");
+		gdfPrinter.printGDFHeader("name VARCHAR, fullName VARCHAR, reducedName VARCHAR, verb VARCHAR, color VARCHAR");
 
-		for(String synset : wordsAndSynsets.keySet()) {
+		for(String synset : _wordsAndSynsets.keySet()) {
 			if(_nodes.containsKey(synset) == false) {
-				_nodes.put(synset, new WordContainer(wordsAndSynsets.get(synset)));
+				_nodes.put(synset, new WordContainer(_wordsAndSynsets.get(synset)));
 				findHypernyms(synset);
 			}
 		}
@@ -59,7 +63,7 @@ public class WordGraph {
 		ArrayList<String> tempNodesList = new ArrayList<>();
 		for(WordContainer wc : _nodes.values()) {
 			tempNodesList.add(wc.getSynset() + "," + wc.getFullWord() + "," + wc.getReducedWord() +
-			                  "," + wc.getHexColor());
+			                  "," + wc.getVerb() + "," + wc.getHexColor());
 		}
 
 		gdfPrinter.printGDFNodes(tempNodesList);
@@ -73,7 +77,7 @@ public class WordGraph {
 
 		gdfPrinter.printGDFEdges(tempEdgesList);
 
-		System.out.println("End");
+		System.out.println("----------------------- END -------------------\n\n\n");
 	}
 
 
@@ -94,7 +98,7 @@ public class WordGraph {
 
         	if(_nodes.containsKey(currAVPair.value) == false) {
         		WordContainer newHypernym = new WordContainer(currAVPair.attribute, currAVPair.attribute,
-        													  currAVPair.value);
+        													  currAVPair.value, "-");
         		_nodes.put(currAVPair.value, newHypernym);
         		findHypernyms(currAVPair.value);
         	}
@@ -103,7 +107,6 @@ public class WordGraph {
 
 		} else {
 			System.out.println("[WARNING] Not able to find any relations to this synset: " + synset);
-			System.out.println("Synset meaning: " + WordNet.wn.synsetsToWords.get(synset).get(0));
 		}
 
 		return;
@@ -149,9 +152,11 @@ public class WordGraph {
 	}
 
 
-	public static void main(String args[]) {
-		GatewayServer gatewayServer = new GatewayServer(new WordGraph());
-        gatewayServer.start();
-        System.out.println("Gateway Server Started");
+	public void setWordGraphNewInputs(HashMap<String, WordContainer> wordsAndSynsets, String filePathAndName) {
+		_wordsAndSynsets = wordsAndSynsets;
+		_filePathAndName = filePathAndName;
+
+		_nodes = new HashMap<String, WordContainer>();
+		_edges = new ArrayList<Edge>();
 	}
 }

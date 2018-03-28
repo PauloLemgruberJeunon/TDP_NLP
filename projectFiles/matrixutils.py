@@ -443,7 +443,6 @@ class CoocMatrix:
 
         print('create_soc_pmi_matrix ended')
 
-
     def highest_cosine_sim_array(self):
 
         print('highest_cosine_sim_array started')
@@ -486,13 +485,13 @@ class CoocMatrix:
         print('calculate_sim_matrix started')
 
         self.noun_to_noun_sim_matrices.append(np.add(np.zeros((self.noun_rows_size, self.noun_rows_size), dtype=float),
-                                                  0.001))
+                                                     0.001))
         self.noun_to_noun_sim_matrices.append(np.add(np.zeros((self.noun_rows_size, self.noun_rows_size), dtype=float),
-                                                  0.001))
+                                                     0.001))
         self.noun_to_noun_sim_matrices.append(np.add(np.zeros((self.noun_rows_size, self.noun_rows_size), dtype=float),
-                                                  0.001))
+                                                     0.001))
         self.noun_to_noun_sim_matrices.append(np.add(np.zeros((self.noun_rows_size, self.noun_rows_size), dtype=float),
-                                                  0.001))
+                                                     0.001))
         self.noun_to_noun_sim_matrices.append(np.add(np.zeros((self.noun_rows_size, self.noun_rows_size), dtype=float),
                                                      0.001))
 
@@ -501,7 +500,7 @@ class CoocMatrix:
         brown_ic = wordnet_ic.ic('ic-brown.dat')
 
         for key in inverted_noun_dict:
-            print(str(key)+ ': ' + inverted_noun_dict[key])
+            print(str(key) + ': ' + inverted_noun_dict[key])
 
         i = 0
         while i < (self.noun_rows_size - 1):

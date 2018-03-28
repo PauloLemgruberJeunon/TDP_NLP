@@ -15,6 +15,9 @@ sep = os.sep
 
 path_to_xlsxFolder = os.getcwd() + sep + os.path.join('..', 'xlsxFiles') + sep
 path_to_txtFolder = os.getcwd() + sep + os.path.join('..', 'txtFiles') + sep
+path_to_gdfFolder = os.getcwd() + sep + os.path.join('..', 'gdfFiles') + sep
+
+path_to_desktop = sep + 'home' + sep + 'paulojeunon' + sep + 'Desktop' + sep
 
 all_semantic_similarity_methods = ('lin', 'jcn', 'wup', 'lch', 'methods_average')
 
