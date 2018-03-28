@@ -75,12 +75,23 @@ def load_from_xlsx(xlsx_file_path):
     return cooc_matrix.plot_two_word_vectors
 
 
-def semantic_similarity_interview_graph():
+def semantic_similarity_interview_graph(all_stages=False):
     methods = ('wup', 'lch', 'jcn', 'lin', 'average_similarity')
-    content_dict = utils.read_all_nouns()
-    noun_to_noun_sim_matrices = mu.calculate_sim_matrix_from_list(content_dict["noun_list"], methods)
-    utils.save_noun_sim_matrix_in_gdf_2(noun_to_noun_sim_matrices, content_dict["noun_list"],
-                                        content_dict["department_list"], methods, 'fromXLSX')
+
+    if all_stages:
+        stages_dict = utils.read_all_stages()
+
+        for stage in stages_dict.keys():
+            curr_stage_dict = stages_dict[stage]
+            noun_to_noun_sim_matrices = mu.calculate_sim_matrix_from_list(curr_stage_dict["noun_list"], methods)
+            utils.save_noun_sim_matrix_in_gdf_2(noun_to_noun_sim_matrices, curr_stage_dict["noun_list"],
+                                                curr_stage_dict["department_list"], methods,
+                                                'semanticSimFromXlsx_' + stage)
+    else:
+        content_dict = utils.read_all_nouns()
+        noun_to_noun_sim_matrices = mu.calculate_sim_matrix_from_list(content_dict["noun_list"], methods)
+        utils.save_noun_sim_matrix_in_gdf_2(noun_to_noun_sim_matrices, content_dict["noun_list"],
+                                            content_dict["department_list"], methods, 'semanticSimFromXlsx')
 
 
 def hypernym_interview_graph(all_stages=False):
@@ -97,4 +108,4 @@ def hypernym_interview_graph(all_stages=False):
         utils.executeJava(content_dict["noun_list"], content_dict["department_list"],
                           content_dict["full_noun_and_verb_list"], content_dict["synset_list"], 'all_nouns')
 
-hypernym_interview_graph()
+semantic_similarity_interview_graph()

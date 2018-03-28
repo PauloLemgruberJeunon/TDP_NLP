@@ -292,7 +292,7 @@ def read_all_stages():
 
     wb = pd.ExcelFile(cts.path_to_interview_xlsx+ 'All_nouns_for_hypernyms_Copia.xlsx')
 
-    wb2 = pd.ExcelFile(cts.path_to_desktop + 'list_of_verbs.xlsx')
+    wb2 = pd.ExcelFile(cts.path_to_interview_xlsx + 'list_of_verbs.xlsx')
     sheet2 = wb2.parse('sheet2')
 
     for i in range(1,7):
@@ -355,7 +355,7 @@ def read_all_nouns():
     full_noun_and_verb_list = sheet['Entities'].values.tolist().copy()
     synset_list = sheet['SUMO word ID'].values.tolist().copy()
 
-    wb3 = pd.ExcelFile(cts.path_to_desktop + 'list_of_verbs.xlsx')
+    wb3 = pd.ExcelFile(cts.path_to_interview_xlsx + 'list_of_verbs.xlsx')
     sheet3 = wb3.parse('sheet2')
 
     find_associated_verbs_in_xlsx_sheet(full_noun_and_verb_list, sheet3)
@@ -564,11 +564,11 @@ def save_noun_sim_matrix_in_gdf(cooc_matrix, noun_dict, methods, book_name):
 
 
 def save_noun_sim_matrix_in_gdf_2(noun_to_noun_sim_matrices, noun_list, department_list, methods,
-                                  source_name):
+                                  name):
 
     output_files = []
     for method in methods:
-        output_files.append(open(cts.path_to_gdfFolder + source_name + '_' + method + '.gdf', 'w'))
+        output_files.append(open(cts.path_to_gdfFolder + name + '_' + method + '.gdf', 'w'))
 
     for output_file_index in range(len(output_files)):
         print('Creating the graph archives ... current progress = ' + str(output_file_index+1) + '/' +
