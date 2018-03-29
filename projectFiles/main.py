@@ -17,6 +17,9 @@ def load_from_txt(txt_input_path, encoding, save_in_xlsx, workbook_name, enable_
     # Will create the co-occurrence matrix with the obtained windows
     cooc_matrix = mu.CoocMatrix(windows, enable_lemmatization=enable_lemmatization)
 
+    utils.save_list_of_tuples(cooc_matrix.get_20_percent_of_highest_pairs(), 'PDandD', '20PerCentHighestPairs',
+                              encoding)
+
     if save_in_xlsx:
         # The worksheet will be saved in a excel workbook with the file name and location equal to the string below
         workbook = utils.create_workbook(workbook_name)
@@ -60,9 +63,11 @@ def load_from_txt(txt_input_path, encoding, save_in_xlsx, workbook_name, enable_
         utils.close_workbook(workbook)
 
     # cooc_matrix.calculate_sim_matrix()
-    cooc_matrix.noun_to_noun_sim_matrices = mu.calculate_sim_matrix_from_list(list(cooc_matrix.noun_rows.keys()),
+    inverted_noun_rows  = utils.invert_dictionary(cooc_matrix.noun_rows)
+    temp_noun_rows_list = [inverted_noun_rows[i] for i in range(len(inverted_noun_rows))]
+    cooc_matrix.noun_to_noun_sim_matrices = mu.calculate_sim_matrix_from_list(temp_noun_rows_list,
                                                                               cts.all_semantic_similarity_methods)
-    utils.save_noun_sim_matrix_in_gdf(cooc_matrix , cooc_matrix.noun_rows, cts.all_semantic_similarity_methods,
+    utils.save_noun_sim_matrix_in_gdf(cooc_matrix, cooc_matrix.noun_rows, cts.all_semantic_similarity_methods,
                                       'PDandD')
 
     return cooc_matrix.plot_two_word_vectors
@@ -75,8 +80,8 @@ def load_from_xlsx(xlsx_file_path):
     return cooc_matrix.plot_two_word_vectors
 
 
-def semantic_similarity_interview_graph(all_stages=False):
-    methods = ('wup', 'lch', 'jcn', 'lin', 'average_similarity')
+def semantic_similarity_interview_graph(all_stages=False, eliminate_same_department_edges=True):
+    methods = cts.all_semantic_similarity_methods
 
     if all_stages:
         stages_dict = utils.read_all_stages()
@@ -85,13 +90,20 @@ def semantic_similarity_interview_graph(all_stages=False):
             curr_stage_dict = stages_dict[stage]
             noun_to_noun_sim_matrices = mu.calculate_sim_matrix_from_list(curr_stage_dict["noun_list"], methods)
             utils.save_noun_sim_matrix_in_gdf_2(noun_to_noun_sim_matrices, curr_stage_dict["noun_list"],
-                                                curr_stage_dict["department_list"], methods,
-                                                'semanticSimFromXlsx_' + stage)
+                                                curr_stage_dict["department_list"],
+                                                curr_stage_dict["full_noun_and_verb_list"],
+                                                curr_stage_dict["synset_list"], methods,
+                                                cts.path_to_interview_sim_gdf, 'semanticSimFromXlsx_' + stage,
+                                                eliminate_same_department_edges)
     else:
-        content_dict = utils.read_all_nouns()
-        noun_to_noun_sim_matrices = mu.calculate_sim_matrix_from_list(content_dict["noun_list"], methods)
-        utils.save_noun_sim_matrix_in_gdf_2(noun_to_noun_sim_matrices, content_dict["noun_list"],
-                                            content_dict["department_list"], methods, 'semanticSimFromXlsx')
+        curr_stage_dict = utils.read_all_nouns()
+        noun_to_noun_sim_matrices = mu.calculate_sim_matrix_from_list(curr_stage_dict["noun_list"], methods)
+        utils.save_noun_sim_matrix_in_gdf_2(noun_to_noun_sim_matrices, curr_stage_dict["noun_list"],
+                                            curr_stage_dict["department_list"],
+                                            curr_stage_dict["full_noun_and_verb_list"],
+                                            curr_stage_dict["synset_list"], methods,
+                                            cts.path_to_interview_sim_gdf, 'semanticSimFromXlsx',
+                                            eliminate_same_department_edges)
 
 
 def hypernym_interview_graph(all_stages=False):
@@ -101,11 +113,17 @@ def hypernym_interview_graph(all_stages=False):
 
         for stage in stages_dict.keys():
             curr_stage_dict = stages_dict[stage]
-            utils.executeJava(curr_stage_dict["noun_list"], curr_stage_dict["department_list"],
-                              curr_stage_dict["full_noun_and_verb_list"], curr_stage_dict["synset_list"], stage)
+            utils.execute_java(curr_stage_dict["noun_list"], curr_stage_dict["department_list"],
+                               curr_stage_dict["full_noun_and_verb_list"], curr_stage_dict["synset_list"], stage)
     else:
         content_dict = utils.read_all_nouns()
-        utils.executeJava(content_dict["noun_list"], content_dict["department_list"],
-                          content_dict["full_noun_and_verb_list"], content_dict["synset_list"], 'all_nouns')
+        utils.execute_java(content_dict["noun_list"], content_dict["department_list"],
+                           content_dict["full_noun_and_verb_list"], content_dict["synset_list"], 'all_nouns')
 
-semantic_similarity_interview_graph()
+
+# hypernym_interview_graph()
+# hypernym_interview_graph(True)
+semantic_similarity_interview_graph(True)
+semantic_similarity_interview_graph(False)
+
+

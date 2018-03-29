@@ -10,8 +10,10 @@ from openpyxl import load_workbook
 from openpyxl.utils import coordinate_from_string, column_index_from_string
 
 import numpy as np
-
 import math
+
+import os
+import subprocess
 
 import matplotlib.patches as mpatches
 from matplotlib import pyplot as plt
@@ -21,10 +23,12 @@ from nltk.tag.stanford import CoreNLPPOSTagger
 
 from py4j.java_gateway import JavaGateway
 
+
 '''
 Below are functions called by the main.py file and are the start of the noun extraction process from books and xlsx
 sheets
 '''
+
 
 def read_text_input(file_input_path, encoding, lowerText=False):
     print("read_text_input started")
@@ -390,10 +394,17 @@ def find_associated_verbs_in_xlsx_sheet(full_noun_and_verb_list, sheet):
         temp_noun_list = sheet['Nouns' + str(i)].values.tolist().copy()
         temp_verb_list = sheet['Verbs' + str(i)].values.tolist().copy()
 
+        # print(full_noun_and_verb_list)
+        # print(temp_noun_list)
+
         for j in range(len(full_noun_and_verb_list)):
             for k in range(len(temp_noun_list)):
-                if full_noun_and_verb_list[j] == temp_noun_list[j]:
+                # print(full_noun_and_verb_list[j] + ' || ' + temp_noun_list[k])
+                if full_noun_and_verb_list[j] == temp_noun_list[k]:
                     full_noun_and_verb_list[j] = (full_noun_and_verb_list[j], '[' + temp_verb_list[j] + ']')
+
+        # for word,verb in full_noun_and_verb_list:
+        #     print(word + ' || ' + verb)
 
 
 def load_from_wb(workbook_name):
@@ -507,6 +518,15 @@ def save_tagged_words(tagged_text, file_name=cts.path_to_txtFolder+'tagged_text.
     f2.close()
 
 
+def save_list_of_tuples(list_of_tuples, source_name, purpose_name, encoding='utf8'):
+
+    output_file = open(cts.path_to_txtFolder + source_name + '_' + purpose_name + '.txt', 'w', encoding=encoding)
+    for tuple in list_of_tuples:
+        for value in tuple:
+            output_file.write(str(value) + ' - ')
+        output_file.write('\n')
+
+
 '''
 Below are functions related to create gdf archives 
 '''
@@ -516,11 +536,11 @@ def save_noun_sim_matrix_in_gdf(cooc_matrix, noun_dict, methods, book_name):
 
     output_files = []
     for method in methods:
-        output_files.append(open(cts.path_to_gdfFolder + book_name + '_' + method + '.gdf', 'w'))
+        output_files.append(open(cts.path_to_book_sim_gdf + book_name + '_' + method + '.gdf', 'w'))
 
     for output_file_index in range(len(output_files)):
-        print('Creating the graph archives ... current progress = ' + str(output_file_index) + '/' +
-              str(len(output_files)))
+        # print('Creating the graph archives ... current progress = ' + str(output_file_index) + '/' +
+        # str(len(output_files)))
 
         output_files[output_file_index].write('nodedef>name VARCHAR')
 
@@ -559,25 +579,33 @@ def save_noun_sim_matrix_in_gdf(cooc_matrix, noun_dict, methods, book_name):
                                                       str(curr_matrix[i][j]) + '\n')
                 j += 1
 
-            print('archive: ' + str(i))
+            # print('archive: ' + str(i))
             i += 1
 
 
-def save_noun_sim_matrix_in_gdf_2(noun_to_noun_sim_matrices, noun_list, department_list, methods,
-                                  name):
+def save_noun_sim_matrix_in_gdf_2(noun_to_noun_sim_matrices, noun_list, department_list, full_noun_and_verb_list,
+                                  synset_list, methods, path, name, eliminate_same_department_edges=True):
+    # if eliminate_same_department_edges:
+    #     dept_edges = "0"
+    # else:
+    #     dept_edges = '1'
 
     output_files = []
     for method in methods:
-        output_files.append(open(cts.path_to_gdfFolder + name + '_' + method + '.gdf', 'w'))
+        output_files.append(open(path + name + '_' + method + '.gdf', 'w'))
+        # output_files.append(open(path + name + '_' + method + '_' + dept_edges + '.gdf', 'w'))
 
     for output_file_index in range(len(output_files)):
-        print('Creating the graph archives ... current progress = ' + str(output_file_index+1) + '/' +
-              str(len(output_files)))
+        # print('Creating the graph archives ... current progress = ' + str(output_file_index+1) + '/' +
+        #       str(len(output_files)))
 
-        output_files[output_file_index].write('nodedef>name VARCHAR, color VARCHAR\n')
+        output_files[output_file_index].write('nodedef>name VARCHAR, fullName VARCHAR, reducedName VARCHAR,'
+                                              ' verb VARCHAR, color VARCHAR\n')
 
-        for (noun, department) in zip(noun_list, department_list):
-            output_files[output_file_index].write(noun)
+        for i in range(len(noun_list)):
+            output_files[output_file_index].write(str(synset_list[i]) + ',' + full_noun_and_verb_list[i][0] + ',' +
+                                                  noun_list[i] + ',' + full_noun_and_verb_list[i][1])
+            department = department_list[i]
             color = "#000000"
             if department == "Chemical":
                 color = "#000080"
@@ -596,9 +624,9 @@ def save_noun_sim_matrix_in_gdf_2(noun_to_noun_sim_matrices, noun_list, departme
             elif department == "Petroleum":
                 color = "#778899"
 
-            output_files[output_file_index].write(", " + color + "\n")
+            output_files[output_file_index].write("," + color + "\n")
 
-        output_files[output_file_index].write('edgedef>node1 VARCHAR, node2 VARCHAR, weight FLOAT\n')
+        output_files[output_file_index].write('edgedef>node1 VARCHAR, node2 VARCHAR\n')
 
         curr_matrix = noun_to_noun_sim_matrices[methods[output_file_index]]
 
@@ -610,11 +638,15 @@ def save_noun_sim_matrix_in_gdf_2(noun_to_noun_sim_matrices, noun_list, departme
             j = i + 1
             while j < curr_matrix.shape[0]:
 
-                output_files[output_file_index].write(noun_list[i] + ',' + noun_list[j] + ',' +
+                if eliminate_same_department_edges and department_list[i] == department_list[j]:
+                    j += 1
+                    continue
+
+                output_files[output_file_index].write(str(synset_list[i]) + ',' + str(synset_list[j]) + ',' +
                                                       str(curr_matrix[i][j]) + '\n')
                 j += 1
 
-            print('archive: ' + str(i))
+            # print('archive: ' + str(i))
             i += 1
 
 
@@ -635,16 +667,27 @@ def limit_value(value, min_value, max_value):
 
     return value
 
+
+def create_new_directory(path_plus_dir_name):
+    if not os.path.exists(path_plus_dir_name):
+        os.makedirs(path_plus_dir_name, exist_ok=True)
+
+
 '''
 Below are Java interface functions
 '''
 
-def executeJava(noun_list, department_list, full_noun_and_verb_list, synset_list, sheet_name):
+
+jvm_started = False
+
+
+def execute_java(noun_list, department_list, full_noun_and_verb_list, synset_list, sheet_name):
+
     gateway = JavaGateway()
     word_container_hashmap = gateway.jvm.java.util.HashMap()
 
     for i in range(len(noun_list)):
-        print(i)
+        # print(i)
         word_countainer = gateway.jvm.WordContainer()
         word_countainer.setFullWord(full_noun_and_verb_list[i][0])
         word_countainer.setVerb(full_noun_and_verb_list[i][1])
@@ -674,6 +717,21 @@ def executeJava(noun_list, department_list, full_noun_and_verb_list, synset_list
 
     word_graph_handler = gateway.entry_point
     word_graph = word_graph_handler.getWordGraph(word_container_hashmap,
-                                                 cts.path_to_gdfFolder + sheet_name + "_hyperGraph.gdf")
+                                                 cts.path_to_interview_hypernym_gdf + sheet_name + "_hyperGraph.gdf")
 
     word_graph.startWordGraph()
+
+
+'''
+Below here are some pre-steps that have to be made
+'''
+
+
+create_new_directory(cts.path_to_gdfFolder)
+create_new_directory(cts.path_to_xlsxFolder)
+create_new_directory(cts.path_to_txtFolder)
+create_new_directory(cts.path_to_book_sim_gdf)
+create_new_directory(cts.path_to_interview_hypernym_gdf)
+create_new_directory(cts.path_to_interview_sim_gdf)
+create_new_directory(cts.path_to_interview_xlsx)
+create_new_directory(cts.path_to_generated_xlsx)

@@ -521,13 +521,9 @@ class CoocMatrix:
 
                 w2 = w2[0]
 
-                self.noun_to_noun_sim_matrices[0][i][j] = w1.wup_similarity(w2)
-
-                # self.noun_to_noun_sim_matrices[1][i][j] = w1.path_similarity(w2)
+                value = w1.wup_similarity(w2)
 
                 self.noun_to_noun_sim_matrices[1][i][j] = w1.lch_similarity(w2)/lch_maximum_obtained_value
-
-                # self.noun_to_noun_sim_matrices[3][i][j] = w1.res_similarity(w2, brown_ic)
 
                 self.noun_to_noun_sim_matrices[2][i][j] = w1.jcn_similarity(w2, brown_ic)
                 if self.noun_to_noun_sim_matrices[2][i][j] > 1.0:
@@ -557,6 +553,43 @@ class CoocMatrix:
             i += 1
 
         print('calculate_sim_matrix ended')
+
+    def get_20_percent_of_highest_pairs(self):
+        # Gets the number that corresponds to 20% of the total of elements in the matrix
+        twenty_percent = int(np.ceil(self.noun_rows_size * self.verb_columns_size * 0.2))
+
+        #  Creates an empty numpy array with the size of the entire matrix
+        temp_matrix_list = np.empty(self.noun_rows_size * self.verb_columns_size)
+
+        x = 0
+
+        #  Fit the matrix in a 1D array
+        for i in self.matrix.flat:
+            temp_matrix_list[x] = i
+            x += 1
+
+        #  Get a list of indices of the 20% most occurring items on the "1D matrix"
+        thirty_percent_bigger_ind = heapq.nlargest(twenty_percent,
+                                                   range(self.noun_rows_size * self.verb_columns_size),
+                                                   temp_matrix_list.take)
+
+        i = 0
+        real_aij_matrix_pos = []
+
+        #  transform the obtained 1D-matrix's indices to the indices of the real matrix (2D indices)
+        while i < twenty_percent:
+            real_aij_matrix_pos.append([thirty_percent_bigger_ind[i] // self.verb_columns_size,
+                                        thirty_percent_bigger_ind[i] % self.verb_columns_size])
+            i += 1
+
+        inverted_noun_rows = utils.invert_dictionary(self.noun_rows)
+        inverted_verb_columns = utils.invert_dictionary(self.verb_columns)
+
+        highest_values_list = []
+        for i,j in real_aij_matrix_pos:
+            highest_values_list.append((self.matrix[i][j], inverted_noun_rows[i], inverted_verb_columns[j]))
+
+        return highest_values_list
 
 
 def calc_beta(matrix, beta_constant, row_index):
@@ -635,17 +668,18 @@ def calculate_sim_matrix_from_list(noun_list, methods_list):
                 noun_to_noun_sim_matrices['wup'][i][j] = value
 
             if 'jcn' in noun_to_noun_sim_matrices:
-                value = w1.wup_similarity(w2)
+                value = w1.jcn_similarity(w2, brown_ic)
                 value = utils.limit_value(value, 0.001, 1.0)
                 noun_to_noun_sim_matrices['jcn'][i][j] = value
 
             if 'lin' in noun_to_noun_sim_matrices:
-                value = w1.wup_similarity(w2)
+                value = w1.lin_similarity(w2, brown_ic)
                 value = utils.limit_value(value, 0.001, 1.0)
                 noun_to_noun_sim_matrices['lin'][i][j] = value
 
             if 'lch' in noun_to_noun_sim_matrices:
-                value = w1.wup_similarity(w2)
+                value = w1.lch_similarity(w2)
+                value = value / 3.637
                 value = utils.limit_value(value, 0.001, 1.0)
                 noun_to_noun_sim_matrices['lch'][i][j] = value
 
@@ -655,7 +689,7 @@ def calculate_sim_matrix_from_list(noun_list, methods_list):
                 for method in methods_list:
                     value += noun_to_noun_sim_matrices[method][i][j]
 
-                value /= 4
+                value = value/(len(methods_list) - 1)
 
                 value = utils.limit_value(value, 0.001, 1.0)
                 noun_to_noun_sim_matrices['methods_average'][i][j] = value
