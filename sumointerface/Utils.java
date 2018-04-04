@@ -16,8 +16,8 @@ public class Utils {
 		double averageValue = (wupValue + jcnValue + linValue + lchValue)/4.0;
 		if(averageValue > 1.0) {
 			averageValue = 1.0;
-		} else if(averageValue < 0.001) {
-			averageValue = 0.001;
+		} else if(averageValue < 0.01) {
+			averageValue = 0.01;
 		}
 
 		return averageValue;

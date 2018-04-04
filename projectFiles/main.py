@@ -121,9 +121,9 @@ def hypernym_interview_graph(all_stages=False):
                            content_dict["full_noun_and_verb_list"], content_dict["synset_list"], 'all_nouns')
 
 
-# hypernym_interview_graph()
-# hypernym_interview_graph(True)
-semantic_similarity_interview_graph(True)
-semantic_similarity_interview_graph(False)
+hypernym_interview_graph()
+hypernym_interview_graph(True)
+# semantic_similarity_interview_graph(True)
+# semantic_similarity_interview_graph(False)
 
 

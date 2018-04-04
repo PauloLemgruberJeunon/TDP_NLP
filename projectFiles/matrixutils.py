@@ -485,15 +485,15 @@ class CoocMatrix:
         print('calculate_sim_matrix started')
 
         self.noun_to_noun_sim_matrices.append(np.add(np.zeros((self.noun_rows_size, self.noun_rows_size), dtype=float),
-                                                     0.001))
+                                                     0.01))
         self.noun_to_noun_sim_matrices.append(np.add(np.zeros((self.noun_rows_size, self.noun_rows_size), dtype=float),
-                                                     0.001))
+                                                     0.01))
         self.noun_to_noun_sim_matrices.append(np.add(np.zeros((self.noun_rows_size, self.noun_rows_size), dtype=float),
-                                                     0.001))
+                                                     0.01))
         self.noun_to_noun_sim_matrices.append(np.add(np.zeros((self.noun_rows_size, self.noun_rows_size), dtype=float),
-                                                     0.001))
+                                                     0.01))
         self.noun_to_noun_sim_matrices.append(np.add(np.zeros((self.noun_rows_size, self.noun_rows_size), dtype=float),
-                                                     0.001))
+                                                     0.01))
 
         inverted_noun_dict = utils.invert_dictionary(self.noun_rows)
 
@@ -522,30 +522,30 @@ class CoocMatrix:
                 w2 = w2[0]
 
                 value = w1.wup_similarity(w2)
+                value = utils.limit_value(value, 0.01, 1.0)
+                self.noun_to_noun_sim_matrices[0][i][j] = value
 
-                self.noun_to_noun_sim_matrices[1][i][j] = w1.lch_similarity(w2)/lch_maximum_obtained_value
+                value = w1.lch_similarity(w2)/lch_maximum_obtained_value
+                value = utils.limit_value(value, 0.01, 1.0)
+                self.noun_to_noun_sim_matrices[1][i][j] = value
 
-                self.noun_to_noun_sim_matrices[2][i][j] = w1.jcn_similarity(w2, brown_ic)
-                if self.noun_to_noun_sim_matrices[2][i][j] > 1.0:
-                    self.noun_to_noun_sim_matrices[2][i][j] = 1.0
-                elif self.noun_to_noun_sim_matrices[2][i][j] < 0.0:
-                    self.noun_to_noun_sim_matrices[2][i][j] = 0.001
+                value = w1.jcn_similarity(w2, brown_ic)
+                value = utils.limit_value(value, 0.01, 1.0)
+                self.noun_to_noun_sim_matrices[2][i][j] = value
 
-                self.noun_to_noun_sim_matrices[3][i][j] = w1.lin_similarity(w2, brown_ic)
-                if self.noun_to_noun_sim_matrices[3][i][j] < 0.0:
-                    self.noun_to_noun_sim_matrices[3][i][j] = 0.001
 
-                average_simmilarity = (self.noun_to_noun_sim_matrices[0][i][j] +
+                value = w1.lin_similarity(w2, brown_ic)
+                value = utils.limit_value(value, 0.01, 1.0)
+                self.noun_to_noun_sim_matrices[3][i][j] = value
+
+                value = (self.noun_to_noun_sim_matrices[0][i][j] +
                                        self.noun_to_noun_sim_matrices[1][i][j] +
                                        self.noun_to_noun_sim_matrices[2][i][j] +
                                        self.noun_to_noun_sim_matrices[3][i][j]) / 4.0
 
-                if average_simmilarity < 0.001:
-                    average_simmilarity = 0.001
-                elif average_simmilarity > 1.0:
-                    average_simmilarity = 1.0
+                value = utils.limit_value(value, 0.01, 1.0)
 
-                self.noun_to_noun_sim_matrices[4][i][j] = average_simmilarity
+                self.noun_to_noun_sim_matrices[4][i][j] = value
 
                 j += 1
 
@@ -639,7 +639,7 @@ def calculate_sim_matrix_from_list(noun_list, methods_list):
     noun_list_size = len(noun_list)
     for method in methods_list:
         noun_to_noun_sim_matrices[method] = np.add(np.zeros((noun_list_size, noun_list_size), dtype=float),
-                                                            0.001)
+                                                            0.01)
 
     brown_ic = wordnet_ic.ic('ic-brown.dat')
 
@@ -664,23 +664,23 @@ def calculate_sim_matrix_from_list(noun_list, methods_list):
 
             if 'wup' in noun_to_noun_sim_matrices:
                 value = w1.wup_similarity(w2)
-                value = utils.limit_value(value, 0.001, 1.0)
+                value = utils.limit_value(value, 0.01, 1.0)
                 noun_to_noun_sim_matrices['wup'][i][j] = value
 
             if 'jcn' in noun_to_noun_sim_matrices:
                 value = w1.jcn_similarity(w2, brown_ic)
-                value = utils.limit_value(value, 0.001, 1.0)
+                value = utils.limit_value(value, 0.01, 1.0)
                 noun_to_noun_sim_matrices['jcn'][i][j] = value
 
             if 'lin' in noun_to_noun_sim_matrices:
                 value = w1.lin_similarity(w2, brown_ic)
-                value = utils.limit_value(value, 0.001, 1.0)
+                value = utils.limit_value(value, 0.01, 1.0)
                 noun_to_noun_sim_matrices['lin'][i][j] = value
 
             if 'lch' in noun_to_noun_sim_matrices:
                 value = w1.lch_similarity(w2)
                 value = value / 3.637
-                value = utils.limit_value(value, 0.001, 1.0)
+                value = utils.limit_value(value, 0.01, 1.0)
                 noun_to_noun_sim_matrices['lch'][i][j] = value
 
             if 'methods_average' in noun_to_noun_sim_matrices:
@@ -689,9 +689,9 @@ def calculate_sim_matrix_from_list(noun_list, methods_list):
                 for method in methods_list:
                     value += noun_to_noun_sim_matrices[method][i][j]
 
-                value = value/(len(methods_list) - 1)
+                value = value/(len(methods_list) - 1.0)
 
-                value = utils.limit_value(value, 0.001, 1.0)
+                value = utils.limit_value(value, 0.01, 1.0)
                 noun_to_noun_sim_matrices['methods_average'][i][j] = value
 
             j += 1

@@ -5,6 +5,7 @@ import com.articulate.sigma.WordNetUtilities;
 import py4j.GatewayServer;
 
 import java.util.*;
+import java.io.*;
 
 public class WordGraph {
 
@@ -36,10 +37,13 @@ public class WordGraph {
 	private HashMap<String, WordContainer> _wordsAndSynsets = null;
 	private HashMap<String, WordContainer> _nodes = null;
 	private ArrayList<Edge> _edges = null;
+	private HashMap<String, WordNode> _graph = null;
 
 	public WordGraph(HashMap<String, WordContainer> wordsAndSynsets, String filePathAndName) {
 
 		setWordGraphNewInputs(wordsAndSynsets, filePathAndName);
+
+		_graph = new HashMap<String, WordNode>();
 
 		_nodes = new HashMap<String, WordContainer>();
 		_edges = new ArrayList<Edge>();
@@ -47,18 +51,19 @@ public class WordGraph {
 		WordNet.initOnce();
 	}
 
-	public void startWordGraph() {
-
-		GDFPrinter gdfPrinter = new GDFPrinter(_filePathAndName, "UTF-8"); 
-
-		gdfPrinter.printGDFHeader("name VARCHAR, fullName VARCHAR, reducedName VARCHAR, verb VARCHAR, color VARCHAR");
+	public void startWordGraph() { 
 
 		for(String synset : _wordsAndSynsets.keySet()) {
 			if(_nodes.containsKey(synset) == false) {
 				_nodes.put(synset, new WordContainer(_wordsAndSynsets.get(synset)));
+				_graph.put(synset, new WordNode(new WordContainer(_wordsAndSynsets.get(synset))));
 				findHypernyms(synset);
 			}
 		}
+
+		GDFPrinter gdfPrinter = new GDFPrinter(_filePathAndName, "UTF-8");
+
+		gdfPrinter.printGDFHeader("name VARCHAR, fullName VARCHAR, reducedName VARCHAR, verb VARCHAR, color VARCHAR");
 
 		ArrayList<String> tempNodesList = new ArrayList<>();
 		for(WordContainer wc : _nodes.values()) {
@@ -77,7 +82,21 @@ public class WordGraph {
 
 		gdfPrinter.printGDFEdges(tempEdgesList);
 
-		System.out.println("----------------------- END -------------------\n\n\n");
+		System.out.println("----------------------- END1 -------------------\n\n\n");
+
+		//for(String synset : _graph.keySet()) {
+		//	WordNode currNode = _graph.get(synset);
+		//	System.out.print("\n");
+		//	System.out.println("full word = " + currNode.getFullWord());
+		//	for(WordNode sonNode : currNode.getSonNodes()) {
+		//		System.out.println("son full word = " + sonNode.getFullWord());
+		//		System.out.println("son from interview = " + sonNode.getFromInterview());
+		//	}
+		//}
+
+		findMostImportantsHypernym();
+
+		System.out.println("----------------------- END2 -------------------\n\n\n");
 	}
 
 
@@ -96,12 +115,24 @@ public class WordGraph {
 
         	AVPair currAVPair = getHighestSimilarityHypernym(tempHypernymsList, synset);
 
+        	WordNode newHypernymNode = null;
+        	WordNode currNode = _graph.get(synset);
+
         	if(_nodes.containsKey(currAVPair.value) == false) {
         		WordContainer newHypernym = new WordContainer(currAVPair.attribute, currAVPair.attribute,
         													  currAVPair.value, "-");
         		_nodes.put(currAVPair.value, newHypernym);
+
+        		newHypernymNode = new WordNode(new WordContainer(newHypernym));
+        		_graph.put(currAVPair.value, newHypernymNode);
+        		
         		findHypernyms(currAVPair.value);
         	}
+
+        	newHypernymNode = _graph.get(currAVPair.value);
+
+        	currNode.setMyHypernym(newHypernymNode);
+        	newHypernymNode.addSonNode(currNode);
 
         	_edges.add(new Edge(synset, currAVPair.value));
 
@@ -158,5 +189,68 @@ public class WordGraph {
 
 		_nodes = new HashMap<String, WordContainer>();
 		_edges = new ArrayList<Edge>();
+	}
+
+	public void findMostImportantsHypernym() {
+		HashMap<String, Integer> sonsCounterHash = new HashMap<String, Integer>();
+		int counter[] = new int[1];
+		counter[0] = 0;
+
+		for(String synset : _graph.keySet()) {
+			countSons(synset, counter, 0);
+			sonsCounterHash.put(synset, new Integer(counter[0]));
+			counter[0] = 0;
+		}
+
+		int maxValue = -10;
+		ArrayList<String> mostImportantHypernyms = new ArrayList<String>();
+
+		for(String synset : sonsCounterHash.keySet()) {
+			if(sonsCounterHash.get(synset) >= maxValue) {
+				maxValue = sonsCounterHash.get(synset);
+			}
+		}
+
+		for(String synset : sonsCounterHash.keySet()) {
+			if(maxValue == sonsCounterHash.get(synset)) {
+				mostImportantHypernyms.add(synset);
+			}
+		}
+
+		PrintWriter writter = null;
+		try {
+			writter = new PrintWriter(_filePathAndName.replace(".gdf", "_mostImportantHypernyms.txt"), "UTF-8");
+			for(String synset : mostImportantHypernyms) {
+				WordNode currNode = _graph.get(synset);
+				writter.println("Full word = " + currNode.getFullWord());
+				writter.println("Reduced word = " + currNode.getReducedWord());
+				writter.println("Synset = " + currNode.getSynset());
+				writter.println("\n");
+			}
+			writter.close();
+		} catch(Exception e) {
+			System.out.println("Path not found ...");
+		}
+	}
+
+	public void countSons(String synset, int[] counter, int depth) {
+
+		depth++;
+		WordNode currNode = _graph.get(synset);
+
+		if(currNode.getFromInterview() == true) {
+			counter[0] = counter[0] + 1;
+			//System.out.println("counter = " + counter[0]);
+			//System.out.println("node full name = " + currNode.getFullWord());
+		}
+
+		if (depth >= 4) {
+			return;
+		}
+
+		ArrayList<WordNode> currNodeSons = currNode.getSonNodes();
+		for(int i = 0; i < currNodeSons.size(); i++) {
+			countSons(currNodeSons.get(i).getSynset(), counter, depth);
+		}
 	}
 }
