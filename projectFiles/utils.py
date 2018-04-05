@@ -304,6 +304,11 @@ def read_all_stages():
         department_list = curr_sheet['Department'].values.tolist().copy()
         full_noun_and_verb_list = curr_sheet['Entities'].values.tolist().copy()
         synset_list = curr_sheet['SUMO word ID'].values.tolist().copy()
+        final_noun_list = curr_sheet['Curated nouns'].values.tolist().copy()
+
+        for l in range(len(noun_list)):
+            if isinstance(final_noun_list[l], str):
+                noun_list[l] = final_noun_list[l]
 
         noun_list = [str(noun_list[i]).strip() for i in range(len(noun_list))]
         department_list = [str(department_list[i]).strip() for i in range(len(department_list))]
@@ -328,22 +333,22 @@ def read_all_stages():
 
         synset_list = [int(k) for k in synset_list]
 
-        print('STAGE ' + str(i))
-        print('noun_list_length = ' + str(len(noun_list)))
-        print(noun_list)
-        print('')
-
-        print('department_list_length = ' + str(len(department_list)))
-        print(department_list)
-        print('')
-
-        print('full_noun_and_verb_list_length = ' + str(len(full_noun_and_verb_list)))
-        print(full_noun_and_verb_list)
-        print('')
-
-        print('synset_list_length = ' + str(len(synset_list)))
-        print(synset_list)
-        print('\n\n')
+        # print('STAGE ' + str(i))
+        # print('noun_list_length = ' + str(len(noun_list)))
+        # print(noun_list)
+        # print('')
+        #
+        # print('department_list_length = ' + str(len(department_list)))
+        # print(department_list)
+        # print('')
+        #
+        # print('full_noun_and_verb_list_length = ' + str(len(full_noun_and_verb_list)))
+        # print(full_noun_and_verb_list)
+        # print('')
+        #
+        # print('synset_list_length = ' + str(len(synset_list)))
+        # print(synset_list)
+        # print('\n\n')
 
         find_associated_verbs_in_xlsx_sheet(full_noun_and_verb_list, sheet2)
 
@@ -416,6 +421,7 @@ def find_associated_verbs_in_xlsx_sheet(full_noun_and_verb_list, sheet):
         for k in range(len(temp_noun_list)):
             if full_noun_and_verb_list[j] == temp_noun_list[k]:
                 full_noun_and_verb_list[j] = (full_noun_and_verb_list[j], '[' + temp_verb_list[j] + ']')
+                # print()
                 break
 
 
@@ -618,23 +624,11 @@ def save_noun_sim_matrix_in_gdf_2(noun_to_noun_sim_matrices, noun_list, departme
             output_files[output_file_index].write(full_noun_and_verb_list[i][0] + ',' + noun_list[i] + ',' +
                                                   str(synset_list[i]) + ',' + full_noun_and_verb_list[i][1])
             department = department_list[i]
-            color = "#000000"
-            if department == "Chemical":
-                color = "#000080"
-            elif department == "Civil":
-                color = "#ff0000"
-            elif department == "Computational":
-                color = "#228b22"
-            elif department == "Electrical":
-                color = "#ffff00"
-            elif department == "Materials":
-                color = "#ff1493"
-            elif department == "Mechanical":
-                color = "#8b4513"
-            elif department == "Mining":
-                color = "#ffa500"
-            elif department == "Petroleum":
-                color = "#778899"
+
+            if department in cts.department_colors:
+                color = cts.department_colors[department]
+            else:
+                color = "#000000"
 
             output_files[output_file_index].write("," + color + "\n")
 
@@ -707,23 +701,11 @@ def execute_java(noun_list, department_list, full_noun_and_verb_list, synset_lis
         word_countainer.setReducedWord(noun_list[i])
         word_countainer.setSynset(str(synset_list[i]).strip())
         curr_dept = department_list[i]
-        color = "#000000"
-        if curr_dept == "Chemical":
-            color = "#000080"
-        elif curr_dept == "Civil":
-            color = "#ff0000"
-        elif curr_dept == "Computational":
-            color = "#228b22"
-        elif curr_dept == "Electrical":
-            color = "#ffff00"
-        elif curr_dept == "Materials":
-            color = "#ff1493"
-        elif curr_dept == "Mechanical":
-            color = "#8b4513"
-        elif curr_dept == "Mining":
-            color = "#ffa500"
-        elif curr_dept == "Petroleum":
-            color = "#778899"
+        if curr_dept in cts.department_colors:
+            color = cts.department_colors[curr_dept]
+        else:
+            color = "#000000"
+
         word_countainer.setHexColor(color)
 
         word_container_hashmap.put(word_countainer.getSynset(), word_countainer)

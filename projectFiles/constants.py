@@ -10,6 +10,9 @@ verbs_to_keep = {'prepare': 1, 'synthesize': 1, 'generate': 1, 'define': 1, 'ill
                 'discuss': 1, 'practice': 1, 'apply': 1, 'estimate': 1, 'compute': 1, 'solve': 1, 'conclude': 1,
                 'predict': 1}
 
+department_colors = {'Chemical': '#000080', 'Civil': '#ff0000', 'Computational': '#228b22', 'Electrical': '#ffff00',
+                     'Materials': '#ff1493', 'Mechanical': '#8b4513', 'Mining': '#ffa500', 'Petroleum': '#778899'}
+
 sep = os.sep
 
 path_to_xlsxFolder = os.getcwd() + sep + os.path.join('..', 'xlsxFiles') + sep

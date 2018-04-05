@@ -199,11 +199,13 @@ public class WordGraph {
 		for(String synset : _graph.keySet()) {
 			countSons(synset, counter, 0);
 			sonsCounterHash.put(synset, new Integer(counter[0]));
+			//System.out.println(_graph.get(synset).getFullWord() + " | counter = " + counter[0]); 
 			counter[0] = 0;
 		}
 
 		int maxValue = -10;
 		ArrayList<String> mostImportantHypernyms = new ArrayList<String>();
+		ArrayList<Integer> mostImportantHypernymsScores = new ArrayList<Integer>();
 
 		for(String synset : sonsCounterHash.keySet()) {
 			if(sonsCounterHash.get(synset) >= maxValue) {
@@ -211,21 +213,30 @@ public class WordGraph {
 			}
 		}
 
-		for(String synset : sonsCounterHash.keySet()) {
-			if(maxValue == sonsCounterHash.get(synset)) {
-				mostImportantHypernyms.add(synset);
+		for(int i = 4; i > 2; i--) {
+			for(String synset : sonsCounterHash.keySet()) {
+				if(i == sonsCounterHash.get(synset)) {
+					mostImportantHypernyms.add(synset);
+					System.out.println(_graph.get(synset).getFullWord() + " | " + i);
+					mostImportantHypernymsScores.add(i);
+				}
 			}
 		}
 
 		PrintWriter writter = null;
 		try {
-			writter = new PrintWriter(_filePathAndName.replace(".gdf", "_mostImportantHypernyms.txt"), "UTF-8");
+			writter = new PrintWriter(_filePathAndName.replace(".gdf", "_mostImportantHypernyms_score_3_4.txt"), "UTF-8");
+
+			int inc = 0;
 			for(String synset : mostImportantHypernyms) {
 				WordNode currNode = _graph.get(synset);
 				writter.println("Full word = " + currNode.getFullWord());
 				writter.println("Reduced word = " + currNode.getReducedWord());
 				writter.println("Synset = " + currNode.getSynset());
-				writter.println("\n");
+				writter.println("Score = " + mostImportantHypernymsScores.get(inc));
+				writter.println("\n-------------------\n");
+
+				inc++;
 			}
 			writter.close();
 		} catch(Exception e) {
