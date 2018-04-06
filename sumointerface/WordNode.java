@@ -51,4 +51,8 @@ public class WordNode {
 	public String getReducedWord() {
 		return _word.getReducedWord();
 	}
+
+	public String getNatureOfEntity() {
+		return _word.getNatureOfEntity();
+	}
 } 

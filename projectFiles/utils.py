@@ -367,11 +367,13 @@ def read_all_nouns():
     full_noun_and_verb_list = sheet['Entities'].values.tolist().copy()
     synset_list = sheet['SUMO word ID'].values.tolist().copy()
     final_noun_list = sheet['Final noun'].values.tolist().copy()
+    nature_of_entities_list = find_nature_of_entities(full_noun_and_verb_list, wb)
 
     noun_list = [str(noun_list[i]).strip() for i in range(len(noun_list))]
     department_list = [str(department_list[i]).strip() for i in range(len(department_list))]
     full_noun_and_verb_list = \
         [str(full_noun_and_verb_list[i]).strip() for i in range(len(full_noun_and_verb_list))]
+    nature_of_entities_list = [str(nature_of_entities_list[i]).strip() for i in range(len(nature_of_entities_list))]
 
     wb3 = pd.ExcelFile(cts.path_to_interview_xlsx + 'list_of_verbs.xlsx')
     sheet3 = wb3.parse('sheet2')
@@ -400,8 +402,15 @@ def read_all_nouns():
 
     synset_list = [int(k) for k in synset_list]
 
+    print(full_noun_and_verb_list)
+    print(noun_list)
+    print(nature_of_entities_list)
+    print(department_list)
+    print(synset_list)
+
     content_dict = {"full_noun_and_verb_list": full_noun_and_verb_list, "noun_list": noun_list,
-                    "department_list": department_list, "synset_list": synset_list}
+                    "department_list": department_list, "synset_list": synset_list,
+                    'nature_of_entities_list': nature_of_entities_list}
 
     return content_dict
 
@@ -410,7 +419,7 @@ def find_associated_verbs_in_xlsx_sheet(full_noun_and_verb_list, sheet):
     temp_noun_list = []
     temp_verb_list = []
 
-    for i in range(1, 12):
+    for i in range(1, 13):
         temp_noun_list += sheet['Nouns' + str(i)].values.tolist().copy()
         temp_verb_list += sheet['Verbs' + str(i)].values.tolist().copy()
 
@@ -421,8 +430,36 @@ def find_associated_verbs_in_xlsx_sheet(full_noun_and_verb_list, sheet):
         for k in range(len(temp_noun_list)):
             if full_noun_and_verb_list[j] == temp_noun_list[k]:
                 full_noun_and_verb_list[j] = (full_noun_and_verb_list[j], '[' + temp_verb_list[j] + ']')
-                # print()
                 break
+
+    # for i in range(len(full_noun_and_verb_list)):
+    #     print(full_noun_and_verb_list[i])
+
+
+def find_nature_of_entities(full_noun_list, wb):
+    nature_of_entities_list = []
+    list_of_entities_lists = []
+    list_of_nature_of_entities_list = []
+
+    for i in range(1,7):
+        curr_sheet = wb.parse("stage " + str(i))
+        list_of_entities_lists.append(curr_sheet['Entities'].values.tolist().copy())
+        list_of_nature_of_entities_list.append(curr_sheet['Nature of Entities (Basic)'].values.tolist().copy())
+
+    for entity in full_noun_list:
+        for i in range(6):
+            should_break = False
+            for j in range(len(list_of_entities_lists[i])):
+                if entity == list_of_entities_lists[i][j]:
+                    nature_of_entities_list.append(list_of_nature_of_entities_list[i][j].lower())
+                    should_break = True
+                    break
+
+            if should_break:
+                break
+
+    return nature_of_entities_list
+
 
 
 def load_from_wb(workbook_name):
@@ -694,7 +731,6 @@ def execute_java(noun_list, department_list, full_noun_and_verb_list, synset_lis
     word_container_hashmap = gateway.jvm.java.util.HashMap()
 
     for i in range(len(noun_list)):
-        # print(i)
         word_countainer = gateway.jvm.WordContainer()
         word_countainer.setFullWord(full_noun_and_verb_list[i][0])
         word_countainer.setVerb(full_noun_and_verb_list[i][1])
@@ -708,7 +744,11 @@ def execute_java(noun_list, department_list, full_noun_and_verb_list, synset_lis
 
         word_countainer.setHexColor(color)
 
-        word_container_hashmap.put(word_countainer.getSynset(), word_countainer)
+        codedWord = ''
+        for letter in word_countainer.getFullWord():
+            codedWord += str(ord(letter))
+
+        word_container_hashmap.put(codedWord + word_countainer.getSynset(), word_countainer)
 
     word_graph_handler = gateway.entry_point
     word_graph = word_graph_handler.getWordGraph(word_container_hashmap,
