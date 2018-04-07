@@ -108,20 +108,18 @@ def semantic_similarity_interview_graph(all_stages=False, eliminate_same_departm
 
 def hypernym_interview_graph(all_stages=False):
 
+
+
     if all_stages:
         stages_dict = utils.read_all_stages()
-
-        for stage in stages_dict.keys():
-            curr_stage_dict = stages_dict[stage]
-            utils.execute_java(curr_stage_dict["noun_list"], curr_stage_dict["department_list"],
-                               curr_stage_dict["full_noun_and_verb_list"], curr_stage_dict["synset_list"], stage)
     else:
         content_dict = utils.read_all_nouns()
-        utils.execute_java(content_dict["noun_list"], content_dict["department_list"],
-                           content_dict["full_noun_and_verb_list"], content_dict["synset_list"], 'all_nouns')
+        stages_dict = {'all nouns': content_dict}
+
+    utils.execute_java2(stages_dict, all_stages)
 
 
 hypernym_interview_graph()
-# hypernym_interview_graph(True)
+hypernym_interview_graph(True)
 # semantic_similarity_interview_graph(True)
 # semantic_similarity_interview_graph(False)

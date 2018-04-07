@@ -305,6 +305,7 @@ def read_all_stages():
         full_noun_and_verb_list = curr_sheet['Entities'].values.tolist().copy()
         synset_list = curr_sheet['SUMO word ID'].values.tolist().copy()
         final_noun_list = curr_sheet['Curated nouns'].values.tolist().copy()
+        nature_of_entities_list = curr_sheet['Nature of Entities (Basic)'].values.tolist().copy()
 
         for l in range(len(noun_list)):
             if isinstance(final_noun_list[l], str):
@@ -314,6 +315,7 @@ def read_all_stages():
         department_list = [str(department_list[i]).strip() for i in range(len(department_list))]
         full_noun_and_verb_list = \
             [str(full_noun_and_verb_list[i]).strip() for i in range(len(full_noun_and_verb_list))]
+        nature_of_entities_list = [(str(noe).lower()).strip() for noe in nature_of_entities_list]
 
         j = 0
         loop_size = len(noun_list)
@@ -328,6 +330,7 @@ def read_all_stages():
                 del department_list[j:]
                 del full_noun_and_verb_list[j:]
                 del synset_list[j:]
+                del nature_of_entities_list[j:]
                 break
             j += 1
 
@@ -354,7 +357,8 @@ def read_all_stages():
 
         content_dict['stage' + str(i)] = {'noun_list': noun_list, 'department_list': department_list,
                                           'synset_list': synset_list,
-                                          'full_noun_and_verb_list': full_noun_and_verb_list}
+                                          'full_noun_and_verb_list': full_noun_and_verb_list,
+                                          'nature_of_entities_list': nature_of_entities_list}
 
     return content_dict
 
@@ -402,12 +406,6 @@ def read_all_nouns():
 
     synset_list = [int(k) for k in synset_list]
 
-    print(full_noun_and_verb_list)
-    print(noun_list)
-    print(nature_of_entities_list)
-    print(department_list)
-    print(synset_list)
-
     content_dict = {"full_noun_and_verb_list": full_noun_and_verb_list, "noun_list": noun_list,
                     "department_list": department_list, "synset_list": synset_list,
                     'nature_of_entities_list': nature_of_entities_list}
@@ -447,10 +445,15 @@ def find_nature_of_entities(full_noun_list, wb):
         list_of_nature_of_entities_list.append(curr_sheet['Nature of Entities (Basic)'].values.tolist().copy())
 
     for entity in full_noun_list:
+
         for i in range(6):
             should_break = False
+
             for j in range(len(list_of_entities_lists[i])):
-                if entity == list_of_entities_lists[i][j]:
+                if isinstance(list_of_nature_of_entities_list[i][j], float):
+                    break
+
+                if entity.strip() == list_of_entities_lists[i][j].strip():
                     nature_of_entities_list.append(list_of_nature_of_entities_list[i][j].lower())
                     should_break = True
                     break
@@ -722,35 +725,67 @@ Below are Java interface functions
 '''
 
 
-jvm_started = False
+def execute_java2(stage_dict, all_stages):
+    gateway = JavaGateway()
+    word_graph_handler = gateway.entry_point
+    stage_hashmap = gateway.jvm.java.util.HashMap()
+
+    wordCoder = word_graph_handler.wordCoder
+
+    for (stage_name, content_dict) in stage_dict.items():
+        word_container_hashmap = gateway.jvm.java.util.HashMap()
+
+        for i in range(len(content_dict['noun_list'])):
+            word_container = gateway.jvm.WordContainer()
+            word_container.setFullWord(content_dict['full_noun_and_verb_list'][i][0])
+            word_container.setVerb(content_dict['full_noun_and_verb_list'][i][1])
+            word_container.setReducedWord(content_dict['noun_list'][i])
+            word_container.setSynset(str(content_dict['synset_list'][i]).strip())
+            word_container.setNatureOfEntity(content_dict['nature_of_entities_list'][i])
+
+            curr_dept = content_dict['department_list'][i]
+            if curr_dept in cts.department_colors:
+                color = cts.department_colors[curr_dept]
+            else:
+                color = "#000000"
+
+            word_container.setHexColor(color)
+
+            word_container_hashmap.put(wordCoder(word_container.getReducedWord(), word_container.getSynset()),
+                                       word_container)
+
+        stage_hashmap.put(stage_name, word_container_hashmap)
+
+    word_graph = word_graph_handler.getWordGraph(stage_hashmap, cts.path_to_interview_hypernym_gdf + "_hyperGraph.gdf")
+    word_graph.wordGraphCreationHandler(all_stages)
 
 
-def execute_java(noun_list, department_list, full_noun_and_verb_list, synset_list, sheet_name):
+def execute_java(noun_list, department_list, full_noun_and_verb_list, synset_list, nature_of_entities_list, sheet_name):
 
     gateway = JavaGateway()
+    word_graph_handler = gateway.entry_point
     word_container_hashmap = gateway.jvm.java.util.HashMap()
 
+    wordCoder = word_graph_handler.wordCoder
+
     for i in range(len(noun_list)):
-        word_countainer = gateway.jvm.WordContainer()
-        word_countainer.setFullWord(full_noun_and_verb_list[i][0])
-        word_countainer.setVerb(full_noun_and_verb_list[i][1])
-        word_countainer.setReducedWord(noun_list[i])
-        word_countainer.setSynset(str(synset_list[i]).strip())
+        word_container = gateway.jvm.WordContainer()
+        word_container.setFullWord(full_noun_and_verb_list[i][0])
+        word_container.setVerb(full_noun_and_verb_list[i][1])
+        word_container.setReducedWord(noun_list[i])
+        word_container.setSynset(str(synset_list[i]).strip())
+        word_container.setNatureOfEntity(nature_of_entities_list[i])
         curr_dept = department_list[i]
         if curr_dept in cts.department_colors:
             color = cts.department_colors[curr_dept]
         else:
             color = "#000000"
 
-        word_countainer.setHexColor(color)
+        word_container.setHexColor(color)
 
-        codedWord = ''
-        for letter in word_countainer.getFullWord():
-            codedWord += str(ord(letter))
+        word_container_hashmap.put(wordCoder(word_container.getReducedWord(), word_container.getSynset()),
+                                   word_container)
 
-        word_container_hashmap.put(codedWord + word_countainer.getSynset(), word_countainer)
-
-    word_graph_handler = gateway.entry_point
     word_graph = word_graph_handler.getWordGraph(word_container_hashmap,
                                                  cts.path_to_interview_hypernym_gdf + sheet_name + "_hyperGraph.gdf")
 

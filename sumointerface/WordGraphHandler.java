@@ -11,7 +11,7 @@ public class WordGraphHandler {
 		_isInstntiated = false;
 	}
 
-	public WordGraph getWordGraph(HashMap<String, WordContainer> wordsAndSynsets, String filePathAdName) {
+	public WordGraph getWordGraph(HashMap<String, HashMap<String, WordContainer>> wordsAndSynsets, String filePathAdName) {
 		if(_isInstntiated) {
 			_wordGraph.setWordGraphNewInputs(wordsAndSynsets, filePathAdName);
 			return _wordGraph;
@@ -26,5 +26,9 @@ public class WordGraphHandler {
 		GatewayServer gatewayServer = new GatewayServer(new WordGraphHandler());
         gatewayServer.start();
         System.out.println("\n Gateway Server Started");
+	}
+
+	public static String wordCoder(String fullWord, String synset) {
+		return Utils.wordCoder(fullWord, synset);
 	}
 }

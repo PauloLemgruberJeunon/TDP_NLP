@@ -9,6 +9,7 @@ public class WordContainer implements Comparable{
 	private String _hexColor = "#000000";
 	private String _verb = "";
 	private String _natureOfEntity = "";
+	private String _stage = "NA";
 
  	public WordContainer() {
 
@@ -29,6 +30,7 @@ public class WordContainer implements Comparable{
 		_hexColor = wc.getHexColor();
 		_verb = wc.getVerb();
 		_natureOfEntity = wc.getNatureOfEntity();
+		_stage = wc.getStage();
 	}
 
 	public int compareTo(Object wdContainer) throws ClassCastException {
@@ -62,6 +64,10 @@ public class WordContainer implements Comparable{
 		return _natureOfEntity;
 	}
 
+	public String getStage() {
+		return _stage;
+	}
+
 	public void setFullWord(String fullWord) {
 		_fullWord = fullWord;
 	}
@@ -81,8 +87,12 @@ public class WordContainer implements Comparable{
 	public void setVerb(String verb) {
 		_verb = verb;
 	}
+
 	public void setNatureOfEntity(String natureOfEntity) {
 		_natureOfEntity = natureOfEntity;
 	}
 
+	public void setStage(String stage) {
+		_stage = stage;
+	} 
 }
