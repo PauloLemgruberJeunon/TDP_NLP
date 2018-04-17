@@ -73,4 +73,127 @@ public class Utils {
 		colors.add("#778899");
 		return colors;
 	}
+
+	public static void printGraph(HashMap<String, WordNode> graph) {
+		for(String synset : graph.keySet()) {
+			WordNode currNode = graph.get(synset);
+			System.out.print("\n");
+			System.out.println("full word = " + currNode.getFullWord());
+			for(WordNode sonNode : currNode.getSonNodes()) {
+				System.out.println("son full word = " + sonNode.getFullWord());
+				System.out.println("son from interview = " + sonNode.getFromInterview());
+			}
+		}
+	}
+
+	public static void calculateAvgPathBetweenDepts(HashMap<String, WordNode> graph, boolean enableSynset0, String fileToSave) {
+		ArrayList<String> colors = getColorList();
+		int numberOfDepts = colors.size();
+		float[][] pathMatrix = new float[numberOfDepts][numberOfDepts];
+
+		HashMap<String, ArrayList<String>> nodesByColor = new HashMap<String, ArrayList<String>>();
+		for(String color : colors) {
+			nodesByColor.put(color, new ArrayList<String>());
+		}
+
+		for(Map.Entry<String, WordNode> wnEntry : graph.entrySet()) {
+			String wnKey = wnEntry.getKey();
+			WordNode wn = wnEntry.getValue();
+			if(enableSynset0 || wn.getSynset().equals("0") == false) {
+				if(wn.getHexColor().equals("#000000") == false) {
+					nodesByColor.get(wn.getHexColor()).add(wnKey);
+					System.out.println(wn.getSynset());
+				} 
+			}			
+		}
+
+		System.out.println("\n");
+
+		int i = 0;
+		for(String iColor : colors) {
+			ArrayList<String> currColorNodesList = nodesByColor.get(iColor);
+			int j = 0;
+
+			for(String jColor : colors) {
+				if(j <= i) {
+					j++;
+					continue;
+				}
+
+				ArrayList<String> tempColorNodesList = nodesByColor.get(jColor);
+				float deptToDeptCounter = 0.0f;
+
+				for(String currWnKey : currColorNodesList) {
+					float singleNodeCounter = 0.0f;
+
+					for(String tempWnKey : tempColorNodesList) {
+						singleNodeCounter += calculateNodeToNodePathDist(graph, currWnKey, tempWnKey);
+					}
+					singleNodeCounter = singleNodeCounter/tempColorNodesList.size();
+					deptToDeptCounter += singleNodeCounter;
+				}
+
+				deptToDeptCounter = deptToDeptCounter/currColorNodesList.size();
+				pathMatrix[i][j] = deptToDeptCounter;
+
+				j++;
+			}
+
+			i++;
+		}
+
+		PrintWriter writter = null;
+		try {
+			writter = new PrintWriter(fileToSave, "UTF-8");
+
+			for(int k = 0; k < numberOfDepts; k++) {
+				for (int l = k+1; l < numberOfDepts; l++) {
+					writter.println(Utils.colorsToDepartment(colors.get(k)) + " & " + Utils.colorsToDepartment(colors.get(l)) +
+					                " = " + pathMatrix[k][l]);
+				}
+			}
+
+			writter.close();
+		} catch(Exception e) {
+			System.out.println("Path not found ...");
+		}
+	}
+
+
+	private static float calculateNodeToNodePathDist(HashMap<String, WordNode> graph, String node1Key, String node2Key) {
+		ArrayList<String> node1Hypernyms = new ArrayList<>();
+		createHypernymList(graph.get(node1Key), node1Hypernyms);
+
+		ArrayList<String> node2Hypernyms = new ArrayList<>();
+		createHypernymList(graph.get(node2Key), node2Hypernyms);
+
+		boolean shouldBreak;
+		float distance = 0.0f;
+		for(int i = 0; i < node1Hypernyms.size(); i++) {
+			shouldBreak = false;
+			for(int j = 0; j < node2Hypernyms.size(); j++) {
+				if(node1Hypernyms.get(i).equals(node2Hypernyms.get(j))) {
+					distance = i + j + 2;
+					shouldBreak = true;
+					break;
+				}
+			}
+			if(shouldBreak) {
+				break;
+			}
+		}
+
+		return distance;
+	}
+
+
+	private static void createHypernymList(WordNode wn, ArrayList<String> nodeHypernyms) {
+		
+		if(wn.getMyHypernym() == null) {
+			return;
+		} else {
+			nodeHypernyms.add(Utils.wordCoder(wn.getMyHypernym().getReducedWord(), wn.getMyHypernym().getSynset()));
+			createHypernymList(wn.getMyHypernym(), nodeHypernyms);
+		}
+	}
 }

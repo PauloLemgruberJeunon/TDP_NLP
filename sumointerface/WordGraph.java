@@ -36,8 +36,17 @@ public class WordGraph {
 	private String _filePathAndName = null;
 	private HashMap<String, HashMap<String, WordContainer>> _wordsAndSynsets = null;
 
-	private String _abstractFullWord = Utils.wordCoder("abstraction", "100002137");
-	private String _physicalFullWord = Utils.wordCoder("physical_entity", "100001930");
+	private String _entityFullWord = "entity";
+	private String _entitySynset = "100001740";
+	private String _entityKey = Utils.wordCoder(_entityFullWord, _entitySynset);
+
+	private String _abstractFullWord = "abstraction";
+	private String _abstractSynset = "100002137";
+	private String _abstractKey = Utils.wordCoder(_abstractFullWord, _abstractSynset);
+
+	private String _physicalFullWord = "physical_entity";
+	private String _physicalSynset = "100001930";
+	private String _physicalKey = Utils.wordCoder(_physicalFullWord, _physicalSynset);
 
 	public WordGraph(HashMap<String, HashMap<String, WordContainer>> wordsAndSynsets, String filePathAndName) {
 
@@ -81,16 +90,17 @@ public class WordGraph {
 							tempWordContainers.put(key, tempContainer);
 						}
 					}
+
+					String filePathNameAndDept = _filePathAndName.replace(".gdf", "_" + Utils.colorsToDepartment(color) +
+					                                                      "_" + stage + ".gdf");
+
+					startWordGraph(graph, edges, tempWordContainers, filePathNameAndDept);
+					graph.clear();
+					edges.clear();
+					tempWordContainers.clear();
+
+					System.out.println("\n-----------------------------\n\n");
 				}
-
-				String filePathNameAndDept = _filePathAndName.replace(".gdf", "_" + Utils.colorsToDepartment(color) + ".gdf");
-
-				startWordGraph(graph, edges, tempWordContainers, filePathNameAndDept);
-				graph.clear();
-				edges.clear();
-				tempWordContainers.clear();
-
-				System.out.println("\n-----------------------------\n\n");
 			}
 		}
 
@@ -100,6 +110,8 @@ public class WordGraph {
 			System.out.println("*** STAGE *** = " + stage + "\n");
 			String filePathNameAndStage = _filePathAndName.replace(".gdf", "_" + stage + ".gdf");
 			startWordGraph(graph, edges, _wordsAndSynsets.get(stage), filePathNameAndStage);
+			graph.clear();
+			edges.clear();
 			System.out.println("\n-----------------------------\n\n");
 		}
 	}
@@ -109,11 +121,20 @@ public class WordGraph {
 
 		for(String fullWordAndSynset : wordsAndSynsets.keySet()) {
 			graph.put(fullWordAndSynset, new WordNode(new WordContainer(wordsAndSynsets.get(fullWordAndSynset))));
-		}
+		}		
 
 		for(String fullWordAndSynset : wordsAndSynsets.keySet()) {
 				findHypernyms(fullWordAndSynset, graph, edges);
 		}
+
+		if(graph.containsKey(_entityKey) == false) {
+			WordContainer toNodeContainer = new WordContainer(_entityFullWord, _entityFullWord, _entitySynset, "-", "-");
+			WordNode toBeAddedNode = new WordNode(toNodeContainer);
+			graph.put(_entityKey, toBeAddedNode);						
+		}
+
+		ArrayList<String> notAddedAbstractKeys = new ArrayList<>();
+		ArrayList<String> notAddedPhysicalKeys = new ArrayList<>();
 
 		for(String fullWordAndSynset : graph.keySet()) {
 			WordNode currNode = graph.get(fullWordAndSynset);
@@ -122,17 +143,69 @@ public class WordGraph {
 				WordNode currNodeHypernym = null;
 
 				if(currNode.getNatureOfEntity().equals("a")) {
-					currNodeHypernym = graph.get(_abstractFullWord);
-					edges.add(new Edge(fullWordAndSynset, _abstractFullWord));
+					currNodeHypernym = graph.get(_abstractKey);
+
+					if(currNodeHypernym == null) {
+						notAddedAbstractKeys.add(fullWordAndSynset);
+						continue;
+					}
+					edges.add(new Edge(fullWordAndSynset, _abstractKey));
 				} else {
-					currNodeHypernym = graph.get(_physicalFullWord);
-					edges.add(new Edge(fullWordAndSynset, _physicalFullWord));
+					currNodeHypernym = graph.get(_physicalKey);
+
+					if(currNodeHypernym == null) {
+						notAddedPhysicalKeys.add(fullWordAndSynset);
+						continue;
+					}
+					edges.add(new Edge(fullWordAndSynset, _physicalKey));
 				}
 
 				currNodeHypernym.addSonNode(currNode);
 				currNode.setMyHypernym(currNodeHypernym);
 			}
 		}
+
+		if(notAddedAbstractKeys.size() > 0) {
+			WordContainer toNodeContainer = new WordContainer(_abstractFullWord, _abstractFullWord,
+						                                                  _abstractSynset, "-", "-");
+			WordNode toBeAddedNode = new WordNode(toNodeContainer);
+			graph.put(_abstractKey, toBeAddedNode);
+
+			edges.add(new Edge(_abstractKey, _entityKey));
+
+			for(String key : notAddedAbstractKeys) {
+				edges.add(new Edge(key, _abstractKey));
+
+				WordNode currNode = graph.get(key);
+
+				toBeAddedNode.addSonNode(currNode);
+				currNode.setMyHypernym(toBeAddedNode);
+			}
+		} 
+
+		if(notAddedPhysicalKeys.size() > 0) {
+			WordContainer toNodeContainer = new WordContainer(_physicalFullWord, _physicalFullWord,
+						                                                  _physicalSynset, "-", "-");
+			WordNode toBeAddedNode = new WordNode(toNodeContainer);
+			graph.put(_physicalKey, toBeAddedNode);
+
+			edges.add(new Edge(_physicalKey, _entityKey));
+
+			for(String key : notAddedPhysicalKeys) {
+				edges.add(new Edge(key, _physicalKey));
+
+				WordNode currNode = graph.get(key);
+
+				toBeAddedNode.addSonNode(currNode);
+				currNode.setMyHypernym(toBeAddedNode);
+			}
+		}
+
+		System.out.println(" *** STARTING CALCULATING PATHS *** \n");
+
+		Utils.calculateAvgPathBetweenDepts(graph, false, filePathNameAndStage.replace(".gdf", "_pathMatrix.txt"));
+
+		System.out.println("\n\n *** ENDING CALCULATING PATHS *** \n");
 
 		GDFPrinter gdfPrinter = new GDFPrinter(filePathNameAndStage, "UTF-8");
 

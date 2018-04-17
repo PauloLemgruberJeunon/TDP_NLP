@@ -11,6 +11,7 @@ from openpyxl.utils import coordinate_from_string, column_index_from_string
 
 import numpy as np
 import math
+import heapq
 
 import os
 
@@ -67,6 +68,8 @@ def tag_tokens_using_stanford_corenlp(token_list, corenlp_server_address='http:/
 
     tagger = CoreNLPPOSTagger(url=corenlp_server_address)
 
+    print(len(token_list))
+
     # The piece of code below is exists to deal with a limitation of the Stanford's coreNLP Server that only
     # supports 100000 characters per server call. So this will break the text in a lot of smaller pieces and send
     # them to the server and after will unite them all in one list of tagged words ('tagged_text')
@@ -74,11 +77,13 @@ def tag_tokens_using_stanford_corenlp(token_list, corenlp_server_address='http:/
     txt_size = len(token_list)
     i = 0
     while i < txt_size:
-        tokens_to_tag = token_list[i:i + 6000]
-        i += 6001
+
         if i + 6000 >= txt_size:
             tokens_to_tag = token_list[i:txt_size]
-            i = txt_size + 1
+            i = txt_size
+        else:
+            tokens_to_tag = token_list[i:i + 6000]
+            i += 6000
 
         tagged_text += tagger.tag(tokens_to_tag)
 
@@ -128,6 +133,8 @@ def tokens_to_centralized_windows(tagged_text, window_size, enable_verb_filter):
 
     print("tokens_to_centralized_windows started")
 
+    content_dict = {}
+
     tagged_text_size = len(tagged_text)
     windows = []
 
@@ -146,13 +153,22 @@ def tokens_to_centralized_windows(tagged_text, window_size, enable_verb_filter):
     else:
         end_offset = (window_size // 2)
 
+    verb_frequency_dict = {}
+
     i = 0
     # Iterates over the tagged_text and create the windows based on it
     while i < tagged_text_size:
 
+        lemmatized_word = lemmatizer.lemmatize(tagged_text[i][0], 'v')
+
         # Checks if the current word is a verb and checks if it's infinitive form is present on the dict of wanted verbs
-        if tagged_text[i][1].startswith('V') and (not enable_verb_filter or
-           lemmatizer.lemmatize(tagged_text[i][0], 'v') in cts.verbs_to_keep):
+        if tagged_text[i][1].startswith('V') and (not enable_verb_filter or lemmatized_word in cts.verbs_to_keep):
+
+            if (lemmatized_word in verb_frequency_dict) == False:
+                verb_frequency_dict[lemmatized_word] = 1
+            else:
+                verb_frequency_dict[lemmatized_word] += 1
+
             # Dumb but functional method to prevent windows from exceed the 'tagged-text' array's boundaries
             if i - begin_offset < 0 or i + end_offset >= tagged_text_size:
                 if i - begin_offset < 0:
@@ -172,9 +188,13 @@ def tokens_to_centralized_windows(tagged_text, window_size, enable_verb_filter):
 
         i += 1
 
+    content_dict['windows'] = windows
+    content_dict['verb_frequency_dict'] = verb_frequency_dict
+
     print("tokens_to_centralized_windows ended")
 
-    return windows
+    return content_dict
+
 
 '''
 Below are functions that deal with the reading, opening and saving of xlsx archives
@@ -218,16 +238,14 @@ def write_cooc_matrix(row_index_name_dict, column_index_name_dict, cooc_matrix, 
                 worksheet.write(i, j, cooc_matrix[i][j])
 
 
-def write_verb_filtered_arrays(nouns_from_verb_arrays, verb_filtered_arrays, worksheet, workbook):
+def write_verb_filtered_arrays(nouns_from_verb_arrays, verb_filtered_arrays, ordered_verbs, worksheet, workbook):
 
 
     xlsx_column = 0
 
-    verbs = verb_filtered_arrays.keys()
-
     format = workbook.add_format({'bg_color': 'green'})
 
-    for verb in verbs:
+    for verb in ordered_verbs:
 
         nouns = nouns_from_verb_arrays[verb]
         nouns_lenght = len(nouns)
@@ -355,6 +373,9 @@ def read_all_stages():
 
         find_associated_verbs_in_xlsx_sheet(full_noun_and_verb_list, sheet2)
 
+        # for t in full_noun_and_verb_list:
+        #     print(t)
+
         content_dict['stage' + str(i)] = {'noun_list': noun_list, 'department_list': department_list,
                                           'synset_list': synset_list,
                                           'full_noun_and_verb_list': full_noun_and_verb_list,
@@ -427,7 +448,7 @@ def find_associated_verbs_in_xlsx_sheet(full_noun_and_verb_list, sheet):
     for j in range(len(full_noun_and_verb_list)):
         for k in range(len(temp_noun_list)):
             if full_noun_and_verb_list[j] == temp_noun_list[k]:
-                full_noun_and_verb_list[j] = (full_noun_and_verb_list[j], '[' + temp_verb_list[j] + ']')
+                full_noun_and_verb_list[j] = (full_noun_and_verb_list[j], '[' + temp_verb_list[k] + ']')
                 break
 
     # for i in range(len(full_noun_and_verb_list)):
@@ -560,7 +581,9 @@ Below are functions related to saving in text archives
 '''
 
 
-def save_tagged_words(tagged_text, file_name=cts.path_to_txtFolder+'tagged_text.txt', encoding='utf8'):
+def save_tagged_words(tagged_text,
+                      file_name=cts.path_to_mec_txt_out + cts.sep +'tagged_text.txt',
+                      encoding='utf8'):
     """
     Saves a list of tuples in a file. Each tuple contains two strings, the first for the word and the second for
     it's tag. This function is used to generate a file in the txtFiles folder. Use this file to check the POSTagger
@@ -578,7 +601,8 @@ def save_tagged_words(tagged_text, file_name=cts.path_to_txtFolder+'tagged_text.
 
 def save_list_of_tuples(list_of_tuples, source_name, purpose_name, encoding='utf8'):
 
-    output_file = open(cts.path_to_txtFolder + source_name + '_' + purpose_name + '.txt', 'w', encoding=encoding)
+    output_file = open(cts.path_to_txtFolder + cts.mec_txt_folder_name + source_name + '_' + purpose_name + '.txt', 'w',
+                       encoding=encoding)
     for tuple in list_of_tuples:
         for value in tuple:
             output_file.write(str(value) + ' - ')
@@ -720,6 +744,37 @@ def create_new_directory(path_plus_dir_name):
         os.makedirs(path_plus_dir_name, exist_ok=True)
 
 
+def sort_dict(dict):
+    dict_size = len(dict)
+    key_array = []
+    value_array = np.empty(dict_size, dtype=int)
+
+    i = 0
+    for key,value in dict.items():
+
+        key_array.append(key)
+
+        if isinstance(value, list):
+            value_array[i] = np.sum(value)
+        elif isinstance(value, int):
+            value_array[i] = value
+
+        i += 1
+
+    list_of_tuples = sort_and_match(value_array, key_array)
+
+    return list_of_tuples
+
+
+def sort_and_match(list_of_values, list_to_be_matched):
+    sorted_value_indices = heapq.nlargest(list_of_values.shape[0], range(list_of_values.shape[0]), list_of_values.take)
+
+    list_of_tuples = []
+    for index in sorted_value_indices:
+        list_of_tuples.append((list_to_be_matched[index], list_of_values[index]))
+
+    return list_of_tuples
+
 '''
 Below are Java interface functions
 '''
@@ -799,7 +854,7 @@ Below here are some pre-steps that have to be made
 
 create_new_directory(cts.path_to_gdfFolder)
 create_new_directory(cts.path_to_xlsxFolder)
-create_new_directory(cts.path_to_txtFolder)
+create_new_directory(cts.path_to_mec_txt_out)
 create_new_directory(cts.path_to_book_sim_gdf)
 create_new_directory(cts.path_to_interview_hypernym_gdf)
 create_new_directory(cts.path_to_interview_sim_gdf)

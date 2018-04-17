@@ -622,7 +622,7 @@ def zero_counter(vec):
 
 
 def save_noun_similarity_array(file_name, encoding, noun_sim_array):
-    output_file = open(cts.path_to_txtFolder+file_name, 'w', encoding=encoding)
+    output_file = open(cts.path_to_txtFolder+cts.mec_txt_folder_name+file_name, 'w', encoding=encoding)
 
     for (noun1, noun2, sim_value) in noun_sim_array:
         output_file.write(noun1 + ' with ' + noun2 + ': ' + str(sim_value) + '\n')

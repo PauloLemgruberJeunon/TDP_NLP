@@ -3,22 +3,36 @@ import projectFiles.utils as utils
 import projectFiles.constants as cts
 
 
-def load_from_txt(txt_input_path, encoding, save_in_xlsx, workbook_name, enable_verb_filter, enable_lemmatization):
+def load_from_txt(txt_input_path, encoding, save_in_xlsx, workbook_name, enable_verb_filter, enable_lemmatization,
+                  chapter='NA'):
 
     text_string_input = utils.read_text_input(txt_input_path, encoding, True)
 
     tokens_list = utils.tokenize_string(text_string_input, True)
 
+    print(tokens_list)
+
     tagged_tokens = utils.tag_tokens_using_stanford_corenlp(tokens_list)
 
     # Will create context windows (word windows). A list that contains lists of tagged words
-    windows = utils.tokens_to_centralized_windows(tagged_tokens, 15, enable_verb_filter)
+    content_dict = utils.tokens_to_centralized_windows(tagged_tokens, 15, enable_verb_filter)
+
+    windows = content_dict['windows']
+
+    if enable_verb_filter:
+        verb_filter_code = '1'
+    else:
+        verb_filter_code = '0'
+
+    list_of_tuples = utils.sort_dict(content_dict['verb_frequency_dict'])
+    utils.save_list_of_tuples(list_of_tuples, 'PDandD_chapter' + chapter , 'verb_frequency_' + verb_filter_code,
+                              encoding)
 
     # Will create the co-occurrence matrix with the obtained windows
     cooc_matrix = mu.CoocMatrix(windows, enable_lemmatization=enable_lemmatization)
 
-    utils.save_list_of_tuples(cooc_matrix.get_20_percent_of_highest_pairs(), 'PDandD', '20PerCentHighestPairs',
-                              encoding)
+    utils.save_list_of_tuples(cooc_matrix.get_20_percent_of_highest_pairs(), 'PDandD_chapter' + chapter,
+                              '20PerCentHighestPairs_' + verb_filter_code, encoding)
 
     if save_in_xlsx:
         # The worksheet will be saved in a excel workbook with the file name and location equal to the string below
@@ -44,7 +58,7 @@ def load_from_txt(txt_input_path, encoding, save_in_xlsx, workbook_name, enable_
     if save_in_xlsx:
         # In the lines below the worksheets will be created and associated to the workbook
         worksheet = utils.get_new_worksheet('cooc_matrix_full', workbook)
-        worksheet2 = utils.get_new_worksheet('soc_pmi_matrix', workbook)
+        # worksheet2 = utils.get_new_worksheet('soc_pmi_matrix', workbook)
         worksheet3 = utils.get_new_worksheet('verb_filtered_arrays', workbook)
 
         inverted_matrix_noun_rows = utils.invert_dictionary(cooc_matrix.noun_rows)
@@ -53,22 +67,24 @@ def load_from_txt(txt_input_path, encoding, save_in_xlsx, workbook_name, enable_
                                 utils.invert_dictionary(cooc_matrix.verb_columns), cooc_matrix.matrix,
                                 worksheet)
 
-        utils.write_cooc_matrix(inverted_matrix_noun_rows,
-                                inverted_matrix_noun_rows, cooc_matrix.soc_pmi_matrix,
-                                worksheet2)
+        # utils.write_cooc_matrix(inverted_matrix_noun_rows,
+        #                         inverted_matrix_noun_rows, cooc_matrix.soc_pmi_matrix,
+        #                         worksheet2)
 
+        ordered_verbs =  utils.sort_dict(cooc_matrix.verb_filtered_arrays)
+        ordered_verbs = [ordered_verbs[i][0] for i in range(len(ordered_verbs))]
         utils.write_verb_filtered_arrays(cooc_matrix.nouns_from_verb_arrays, cooc_matrix.verb_filtered_arrays,
-                                         worksheet3, workbook)
+                                         ordered_verbs, worksheet3, workbook)
 
         utils.close_workbook(workbook)
 
     # cooc_matrix.calculate_sim_matrix()
-    inverted_noun_rows  = utils.invert_dictionary(cooc_matrix.noun_rows)
-    temp_noun_rows_list = [inverted_noun_rows[i] for i in range(len(inverted_noun_rows))]
-    cooc_matrix.noun_to_noun_sim_matrices = mu.calculate_sim_matrix_from_list(temp_noun_rows_list,
-                                                                              cts.all_semantic_similarity_methods)
-    utils.save_noun_sim_matrix_in_gdf(cooc_matrix, cooc_matrix.noun_rows, cts.all_semantic_similarity_methods,
-                                      'PDandD')
+    # inverted_noun_rows  = utils.invert_dictionary(cooc_matrix.noun_rows)
+    # temp_noun_rows_list = [inverted_noun_rows[i] for i in range(len(inverted_noun_rows))]
+    # cooc_matrix.noun_to_noun_sim_matrices = mu.calculate_sim_matrix_from_list(temp_noun_rows_list,
+    #                                                                           cts.all_semantic_similarity_methods)
+    # utils.save_noun_sim_matrix_in_gdf(cooc_matrix, cooc_matrix.noun_rows, cts.all_semantic_similarity_methods,
+    #                                   'PDandD')
 
     return cooc_matrix.plot_two_word_vectors
 
@@ -119,7 +135,12 @@ def hypernym_interview_graph(all_stages=False):
     utils.execute_java2(stages_dict, all_stages)
 
 
+# for i in range(1, 19) :
+#     load_from_txt(cts.path_to_mec_txt_out + 'separatedChapters/' + 'chapter' + str(i), 'utf8', True,
+#                   cts.path_to_generated_xlsx + 'mec_chapter_' + str(i) + '.xlsx', True, True, str(i))
+#
+
 hypernym_interview_graph()
-hypernym_interview_graph(True)
+# hypernym_interview_graph(True)
 # semantic_similarity_interview_graph(True)
 # semantic_similarity_interview_graph(False)

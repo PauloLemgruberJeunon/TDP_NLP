@@ -15,9 +15,12 @@ department_colors = {'Chemical': '#000080', 'Civil': '#ff0000', 'Computational':
 
 sep = os.sep
 
+
 path_to_xlsxFolder = os.getcwd() + sep + os.path.join('..', 'xlsxFiles') + sep
 path_to_txtFolder = os.getcwd() + sep + os.path.join('..', 'txtFiles') + sep
 path_to_gdfFolder = os.getcwd() + sep + os.path.join('..', 'gdfFiles') + sep
+
+path_to_mec_txt_out = path_to_txtFolder + 'product_design_and_development' + sep
 
 path_to_generated_xlsx = path_to_xlsxFolder + 'generatedXlsxFiles' + sep
 path_to_interview_xlsx = path_to_xlsxFolder + 'interviewXlsxFiles' + sep

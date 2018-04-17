@@ -70,9 +70,10 @@ class MainGUI(Tk):
 
         self.show_frame(curr_frame_name, 'LoadingScreen')
 
-        my_thread = CoocMatrixThread(main_func.load_from_txt, self.path_to_txt + txt_input_name, encoding_type_value,
-                                     save_in_xlsx, self.path_to_xlsx + workbook_name, enable_verb_filter,
-                                     enable_lemmatization)
+        my_thread = CoocMatrixThread(main_func.load_from_txt,
+                                     self.path_to_txt + cts.mec_txt_folder_name + txt_input_name,
+                                     encoding_type_value, save_in_xlsx, self.path_to_xlsx + workbook_name,
+                                     enable_verb_filter, enable_lemmatization)
 
         my_thread.start()
         my_thread.join()
@@ -112,6 +113,8 @@ class LoadTxtOrXlsxFrame(Frame):
                                   command=lambda: self.controller.show_frame(self.name(), "LoadXlsx"))
         self.txt_button = Button(self, text='Input from txt',
                                  command=lambda: self.controller.show_frame(self.name(), "LoadTxt"))
+        self.chapters_button = Button(self, text='Input from txt chapters',
+                                 command=lambda: self.controller.show_frame(self.name(), "LoadChapters"))
 
         self.txt_button.grid(row=1, sticky=W+E, pady=10, padx=15)
         self.xlsx_button.grid(row=2, sticky=W+E, pady=(0, 10), padx=15)
@@ -205,8 +208,8 @@ class LoadTxt(Frame):
             self.workbook_name_entry['state'] = 'disabled'
 
     def submit_function(self):
-        success = check_for_file(self.controller.path_to_txt, self.txt_input_name_value.get(),
-                                 self.controller.change_status)
+        success = check_for_file(self.controller.path_to_txt + cts.mec_txt_folder_name,
+                                 self.txt_input_name_value.get(), self.controller.change_status)
 
         if not success:
             return
@@ -256,6 +259,46 @@ class LoadXlsx(Frame):
 
         processing_thread = NormalThread(self.controller.create_cooc_matrix_from_xlsx, self.name(),
                                          self.xlsx_file_name_value.get())
+
+        processing_thread.start()
+
+
+class LoadChapters(Frame):
+    def __init__(self, parent, controller):
+        Frame.__init__(self, parent)
+
+        self.controller = controller
+
+        self.label_1 = Label(self, text='Enter the name of the book to load the content of the chapters')
+        self.label_1.grid(row=0, padx=15, pady=(15, 0), sticky=E+W+S)
+
+        self.label_2 = Label(self, text='The book folder must be on the folder \'txtFiles\'')
+        self.label_1.grid(row=1, padx=15, pady=(0, 10), sticky=E + W + S)
+
+        self.book_name_value = StringVar()
+        self.book_name_entry = Entry(self, textvariable=self.book_name_value)
+        self.book_name_entry.grid(row=2, padx=15, pady=(0, 15), sticky=E+W)
+
+        self.submit_button = Button(self, text='Submit', command=self.submit_function)
+        self.submit_button.grid(row=3, pady=(0, 15), padx=15, sticky=W+E)
+
+        self.back_button = Button(self, text='Go Back',
+                                  command=lambda: self.controller.show_frame(self.name(), 'LoadTxtOrXlsxFrame'))
+        self.back_button.grid(row=4, pady=(0, 10), padx=15, sticky=W+E)
+
+    @staticmethod
+    def name():
+        return 'LoadChapters'
+
+    def submit_function(self):
+        success = check_for_file(self.controller.path_to_xlsx, self.book_name_value.get(),
+                                 self.controller.change_status)
+
+        if not success:
+            return
+
+        processing_thread = NormalThread(self.controller.create_cooc_matrix_from_xlsx, self.name(),
+                                         self.book_name_value.get())
 
         processing_thread.start()
 
@@ -380,6 +423,16 @@ def main():
 def check_for_file(path, file_name, update_status_func):
     print(path+file_name)
     if os.path.isfile(path + file_name):
+        update_status_func(ok_status)
+        return True
+    else:
+        update_status_func(file_not_found_status + ': ' + file_name)
+        return False
+
+
+def check_for_folder(path, update_status_func):
+    print(path)
+    if os.path.isfile(path):
         update_status_func(ok_status)
         return True
     else:
