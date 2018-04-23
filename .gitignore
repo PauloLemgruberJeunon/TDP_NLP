@@ -10,3 +10,8 @@ venv*
 .sigmakee
 sigmakee
 *.gephi
+/sumointerface/SumoInterface/nbproject/private/
+/sumointerface/WordGraph/nbproject/private/
+/sumointerface/WordGraph/build/
+/sumointerface/WordGraph/dist/
+*.txt

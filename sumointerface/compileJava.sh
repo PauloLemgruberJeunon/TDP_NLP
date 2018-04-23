@@ -1,1 +1,0 @@
-javac -d /home/paulojeunon/Desktop/TDP_NLP/sumointerface/classes -cp /home/paulojeunon/workspace/sigmakee/build/classes:/home/paulojeunon/workspace/sigmakee/build/lib/*:./libs/ws4j-1.0.1.jar WordGraphHandler.java WordGraph.java WordContainer.java GDFPrinter.java Utils.java WordNode.java

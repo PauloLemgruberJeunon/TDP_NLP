@@ -630,32 +630,32 @@ def save_noun_similarity_array(file_name, encoding, noun_sim_array):
     output_file.close()
 
 
-def calculate_sim_matrix_from_list(noun_list, methods_list):
+def calculate_sim_matrix_from_list(word_list, methods_list, word_pos='n'):
 
     print('calculate_sim_matrix_from_list started')
 
     noun_to_noun_sim_matrices = {}
 
-    noun_list_size = len(noun_list)
+    word_list_size = len(word_list)
     for method in methods_list:
-        noun_to_noun_sim_matrices[method] = np.add(np.zeros((noun_list_size, noun_list_size), dtype=float),
+        noun_to_noun_sim_matrices[method] = np.add(np.zeros((word_list_size, word_list_size), dtype=float),
                                                             0.01)
 
     brown_ic = wordnet_ic.ic('ic-brown.dat')
 
     i = 0
-    while i < (noun_list_size - 1):
-        j = i + 1
-        w1 = wordnet.synsets(noun_list[i], pos=wordnet.NOUN)
+    while i < (word_list_size):
+        j = 0
+        w1 = wordnet.synsets(word_list[i], word_pos)
         if not w1:
-            print('Not able to find this noun: ' + noun_list[i])
+            print('Not able to find this noun: ' + word_list[i])
             i += 1
             continue
 
         w1 = w1[0]
 
-        while j < noun_list_size:
-            w2 = wordnet.synsets(noun_list[j], pos=wordnet.NOUN)
+        while j < word_list_size:
+            w2 = wordnet.synsets(word_list[j], word_pos)
             if not w2:
                 j += 1
                 continue
@@ -697,7 +697,7 @@ def calculate_sim_matrix_from_list(noun_list, methods_list):
             j += 1
 
         i += 1
-        print('calculate_sim_matrix_from_list: ' + str(i) + '/' + str(noun_list_size-1))
+        print('calculate_sim_matrix_from_list: ' + str(i) + '/' + str(word_list_size-1))
 
     print('calculate_sim_matrix_from_list ended')
 

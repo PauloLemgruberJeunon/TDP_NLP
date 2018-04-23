@@ -10,6 +10,15 @@ verbs_to_keep = {'prepare': 1, 'synthesize': 1, 'generate': 1, 'define': 1, 'ill
                 'discuss': 1, 'practice': 1, 'apply': 1, 'estimate': 1, 'compute': 1, 'solve': 1, 'conclude': 1,
                 'predict': 1}
 
+knowledge_verbs = {'name': 1, 'list': 1, 'identify': 1, 'describe': 1, 'define': 1, 'recognize': 1, 'order': 1}
+comprehension_verbs = {'classify': 1, 'discuss': 1, 'distinguish': 1, 'estimate': 1, 'extend': 1, 'indicate': 1,
+                       'review': 1}
+application_verbs = {'apply': 1, 'choose': 1, 'compute': 1, 'illustrate': 1, 'modify': 1, 'practice': 1, 'solve': 1}
+analysis_verbs = {'analyse': 1, 'calculate': 1, 'compare': 1, 'criticize': 1, 'infer': 1, 'model': 1, 'test': 1}
+synthesis_verbs = {'combine': 1, 'create': 1, 'design': 1, 'develop': 1, 'generate': 1, 'prepare': 1, 'synthesize': 1}
+evaluation_verbs = {'conclude': 1, 'defend': 1, 'evaluate': 1, 'explain': 1, 'justify': 1, 'interpret': 1, 'predict': 1}
+
+
 department_colors = {'Chemical': '#000080', 'Civil': '#ff0000', 'Computational': '#228b22', 'Electrical': '#ffff00',
                      'Materials': '#ff1493', 'Mechanical': '#8b4513', 'Mining': '#ffa500', 'Petroleum': '#778899'}
 

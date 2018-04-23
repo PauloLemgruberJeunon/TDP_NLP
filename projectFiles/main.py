@@ -141,6 +141,6 @@ def hypernym_interview_graph(all_stages=False):
 #
 
 hypernym_interview_graph()
-# hypernym_interview_graph(True)
+hypernym_interview_graph(True)
 # semantic_similarity_interview_graph(True)
 # semantic_similarity_interview_graph(False)

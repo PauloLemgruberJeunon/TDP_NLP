@@ -5,10 +5,12 @@ public class WordNode {
 	private ArrayList<WordNode> _sonNodes = null;
 	private WordNode _myHypernym = null;
 	private boolean _fromInterview = true;
+	private String _uniqueCode = null;
 
 	public WordNode(WordContainer nodeWord) {
 		_word = nodeWord;
 		_fromInterview = (nodeWord.getHexColor().equals("#000000"))? false : true;
+		_uniqueCode = Utils.wordCoder(_word.getReducedWord(), _word.getSynset());
 		_sonNodes = new ArrayList<WordNode>();
 	}
 
@@ -36,6 +38,10 @@ public class WordNode {
 		return _word;
 	}
 
+	public String getUniqueCode() {
+		return _uniqueCode;
+	}
+
 	public String getSynset() {
 		return _word.getSynset();
 	}
@@ -54,5 +60,9 @@ public class WordNode {
 
 	public String getNatureOfEntity() {
 		return _word.getNatureOfEntity();
+	}
+
+	public String getVerb() {
+		return _word.getVerb();
 	}
 } 

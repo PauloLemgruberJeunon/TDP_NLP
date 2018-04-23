@@ -229,13 +229,14 @@ def write_cooc_matrix(row_index_name_dict, column_index_name_dict, cooc_matrix, 
     column_len = len(column_index_name_dict)
 
     for i in range(row_len):
+        worksheet.write(i+1, 0, row_index_name_dict[i])
+
+    for i in range(column_len):
+        worksheet.write(0, i+1, column_index_name_dict[i])
+
+    for i in range(row_len):
         for j in range(column_len):
-            if i == 0:
-                worksheet.write(i, j + 1, column_index_name_dict[j])
-            elif j == 0:
-                worksheet.write(i, j, row_index_name_dict[i])
-            else:
-                worksheet.write(i, j, cooc_matrix[i][j])
+            worksheet.write(i+1, j+1, cooc_matrix[i][j])
 
 
 def write_verb_filtered_arrays(nouns_from_verb_arrays, verb_filtered_arrays, ordered_verbs, worksheet, workbook):
