@@ -10,21 +10,25 @@ public class GDFPrinter {
 	public GDFPrinter(String fileFullPathAndName, String encoding) {
 		try {
 			writter = new PrintWriter(fileFullPathAndName, encoding);
-		} catch(Exception e) {
+		} catch(FileNotFoundException | UnsupportedEncodingException e) {
 			System.out.println("Path not found ...");
 		}		
 	}
 
 	public void printGDFHeader(String attrs) {
-		if(_state == 0) {
-			writter.println("nodedef>" + attrs);
-			_state += 1;
-		} else if(_state == 2) {
-			writter.println("edgedef>" + attrs);
-			_state += 1;
-		} else {
-			System.out.println("[WARNING] incorrect state for call");
-		}
+            switch (_state) {
+                case 0:
+                    writter.println("nodedef>" + attrs);
+                    _state += 1;
+                    break;
+                case 2:
+                    writter.println("edgedef>" + attrs);
+                    _state += 1;
+                    break;
+                default:
+                    System.out.println("[WARNING] incorrect state for call");
+                    break;
+            }
 	}
 
 	public void printGDFNodes(List<String> nodeLine) {

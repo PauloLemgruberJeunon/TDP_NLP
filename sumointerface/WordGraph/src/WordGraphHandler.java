@@ -11,12 +11,12 @@ public class WordGraphHandler {
 		_isInstntiated = false;
 	}
 
-	public WordGraph getWordGraph(HashMap<String, HashMap<String, WordContainer>> wordsAndSynsets, String filePathAdName) {
+	public WordGraph getWordGraph(HashMap<String, HashMap<String, WordContainer>> wordsAndSynsets, HashMap<String,String> pathDict) {
 		if(_isInstntiated) {
-			_wordGraph.setWordGraphNewInputs(wordsAndSynsets, filePathAdName);
+			_wordGraph.setWordGraphNewInputs(wordsAndSynsets, pathDict);
 			return _wordGraph;
 		} else {
-			_wordGraph = new WordGraph(wordsAndSynsets, filePathAdName);
+			_wordGraph = new WordGraph(wordsAndSynsets, pathDict);
 			_isInstntiated = true;
 			return _wordGraph;
 		}

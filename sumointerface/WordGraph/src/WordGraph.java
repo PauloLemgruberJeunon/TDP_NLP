@@ -33,7 +33,7 @@ public class WordGraph {
     }
 
 
-    private String _filePathAndName = null;
+    private HashMap<String, String> _pathDict = null;
     private HashMap<String, HashMap<String, WordContainer>> _wordsAndSynsets = null;
 
     private final String _entityFullWord = "entity";
@@ -48,9 +48,9 @@ public class WordGraph {
     private final String _physicalSynset = "100001930";
     private final String _physicalKey = Utils.wordCoder(_physicalFullWord, _physicalSynset);
 
-    public WordGraph(HashMap<String, HashMap<String, WordContainer>> wordsAndSynsets, String filePathAndName) {
+    public WordGraph(HashMap<String, HashMap<String, WordContainer>> wordsAndSynsets, HashMap<String, String> pathDict) {
 
-        setWordGraphNewInputs(wordsAndSynsets, filePathAndName);
+        setWordGraphNewInputs(wordsAndSynsets, pathDict);
         WordNet.initOnce();
     }
 
@@ -77,8 +77,8 @@ public class WordGraph {
                         }
                     }
 
-                    String filePathNameAndDept = Constants.hypernymGDFFromDeptsAndStages +
-                                                 "hyperGraph_" + Utils.colorsToDepartment(color) + "_" + stage;
+                    String filePathNameAndDept = _pathDict.get("path_to_output_gdf_hypernym_departments") +
+                                                 "hyperGraph_" + Utils.colorsToDepartment(color) + "_" + stage + ".gdf";
                     startWordGraph(graph, edges, tempWordContainers, filePathNameAndDept);
                     
                     graph.clear();
@@ -87,7 +87,7 @@ public class WordGraph {
 
                     //System.out.println("\n-----------------------------\n\n");
                 }
-            }  
+            }
         }
 
         System.out.println("\n\n\n *** STARTING THE CODE TO GENERATE THE GRAPHS USING ALL NOUNS *** \n\n\n");
@@ -95,20 +95,22 @@ public class WordGraph {
         for(String stage : _wordsAndSynsets.keySet()) {
             System.out.println("*** STAGE *** = " + stage + "\n");
             
-            String filePathNameAndStage = _filePathAndName.replace(".gdf", "_" + stage + ".gdf");
+            String filePathNameAndStage = _pathDict.get("path_to_output_gdf_hypernym") + "hyperGraph_" + stage + ".gdf";
             startWordGraph(graph, edges, _wordsAndSynsets.get(stage), filePathNameAndStage);
             
-            String address = "/home/paulojeunon/Desktop/TDP_NLP/xlsxFiles/generatedXlsxFiles/" +
+            String address = _pathDict.get("path_to_output_xlsx_hypernym") +
                           "verbFrequency_" + stage + ".xlsx";
             Utils.findAndSaveVerbNounFrequency(address, graph.get(_entityKey), graph);
             
-            address = Constants.pathToHypernymPathMeasurements + stage + "_hypernymDeptsPathsLength.txt";
+            address = _pathDict.get("path_to_output_txt_hypernym_path_meas") + "hypernymDeptsPathsLength_" + stage + ".txt";
             Utils.calculateAvgPathBetweenDeptsAndOthers(graph, false, address);
             
-            address = Constants.pathToHypernymImportanceMeasurements + stage + "__mostImportantHypernyms_all_nodes_below.txt";
+            address = _pathDict.get("path_to_output_txt_hypernym_important_nodes") +
+                      "mostImportantHypernyms_all_nodes_below_" +  stage + ".txt";
             findMostImportantHypernyms(graph, address);
             
-            address = Constants.pathToOtherGraphMeasurements + stage + "_avgDegreePerAvgDepth.txt";
+            address = _pathDict.get("path_to_output_txt_hypernym_other_meas") + "avgDegreePerAvgDepth_" +
+                      stage + ".txt";
             Utils.getAvgDegreePerAvgDepth(graph.get(_entityKey), address);
             
             graph.clear();
@@ -322,9 +324,9 @@ public class WordGraph {
 
 
     public void setWordGraphNewInputs(HashMap<String, HashMap<String, WordContainer>> wordsAndSynsets,
-                                      String filePathAndName) {
+                                      HashMap<String, String> pathDict) {
         _wordsAndSynsets = wordsAndSynsets;
-        _filePathAndName = filePathAndName;
+        _pathDict = pathDict;
     }
 
     public void findMostImportantHypernyms(HashMap<String, WordNode> graph, String filePathNameAndStage) {

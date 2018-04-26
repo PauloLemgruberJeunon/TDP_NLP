@@ -1,4 +1,9 @@
 import os
+import json
+
+with open('../paths.json') as paths_input:
+    data = json.load(paths_input)
+    print(data)
 
 # Global dictionary used to quickly check if a verb in the text is one that we want to keep in the co-occurrence matrix.
 # The values do not matter, only the keys
@@ -22,24 +27,26 @@ evaluation_verbs = {'conclude': 1, 'defend': 1, 'evaluate': 1, 'explain': 1, 'ju
 department_colors = {'Chemical': '#000080', 'Civil': '#ff0000', 'Computational': '#228b22', 'Electrical': '#ffff00',
                      'Materials': '#ff1493', 'Mechanical': '#8b4513', 'Mining': '#ffa500', 'Petroleum': '#778899'}
 
+all_semantic_similarity_methods = ['lin', 'jcn', 'wup', 'lch']
+
 sep = os.sep
 
+home = '/home/paulojeunon/Desktop/TDP_NLP/'
 
-path_to_xlsxFolder = os.getcwd() + sep + os.path.join('..', 'xlsxFiles') + sep
-path_to_txtFolder = os.getcwd() + sep + os.path.join('..', 'txtFiles') + sep
-path_to_gdfFolder = os.getcwd() + sep + os.path.join('..', 'gdfFiles') + sep
-
-path_to_mec_txt_out = path_to_txtFolder + 'product_design_and_development' + sep
+path_to_xlsxFolder = home + 'xlsxFiles' + sep
+path_to_txtFolder = home + 'txtFiles' + sep
+path_to_gdfFolder = home + 'gdfFiles' + sep
 
 path_to_generated_xlsx = path_to_xlsxFolder + 'generatedXlsxFiles' + sep
 path_to_interview_xlsx = path_to_xlsxFolder + 'interviewXlsxFiles' + sep
+
+path_to_mec_txt_out = path_to_txtFolder + 'product_design_and_development' + sep
+path_to_mec_xlsx_out = path_to_generated_xlsx + 'product_design_and_development' + sep
 
 path_to_interview_sim_gdf = path_to_gdfFolder + 'interviewSimFiles' + sep
 path_to_interview_hypernym_gdf = path_to_gdfFolder + 'interviewHypernymFiles' + sep
 path_to_book_sim_gdf = path_to_gdfFolder + 'bookSimFiles' + sep
 
+path_to_desktop = home + '..' + sep
 
 
-path_to_desktop = sep + 'home' + sep + 'paulojeunon' + sep + 'Desktop' + sep # Avoid
-
-all_semantic_similarity_methods = ('lin', 'jcn', 'wup', 'lch', 'methods_average')

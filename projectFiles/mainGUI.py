@@ -6,6 +6,7 @@ import threading
 
 import projectFiles.main as main_func
 import projectFiles.constants as cts
+import projectFiles.utils as utils
 
 
 file_not_found_status = 'The file was not found'
@@ -19,7 +20,6 @@ class MainGUI(Tk):
 
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
 
-        self.path_to_txt = cts.path_to_txtFolder
         self.path_to_xlsx = cts.path_to_generated_xlsx
 
         self.cooc_matrix_vector_plotter = None
@@ -45,7 +45,7 @@ class MainGUI(Tk):
 
         self.frames = {}
 
-        for myFrame in (LoadTxtOrXlsxFrame, LoadTxt, LoadXlsx, LoadingScreen, VectorDrawGui):
+        for myFrame in (ChoiceFrame, LoadTxt, LoadXlsx, LoadingScreen, VectorDrawGui):
             frame_name = myFrame.__name__
             frame = myFrame(parent=self.container, controller=self)
             self.frames[frame_name] = frame
@@ -53,7 +53,7 @@ class MainGUI(Tk):
             Grid.rowconfigure(frame, 0, weight=1)
             Grid.columnconfigure(frame, 0, weight=1)
 
-        frame = self.frames['LoadTxtOrXlsxFrame']
+        frame = self.frames['ChoiceFrame']
         frame.grid(row=0, column=0, sticky='nsew')
 
     def show_frame(self, curr_frame_name, new_frame_name):
@@ -65,20 +65,27 @@ class MainGUI(Tk):
     def change_status(self, status):
         self.status_label['text'] = status
 
-    def create_cooc_matrix_from_txt(self, curr_frame_name, txt_input_name, encoding_type_value, save_in_xlsx,
-                                    workbook_name, enable_verb_filter, enable_lemmatization):
+    def create_cooc_matrix_from_txt(self, curr_frame_name, txt_input_name, path_dict, encoding_type_value, save_in_xlsx,
+                                    workbook_name, enable_verb_filter, enable_lemmatization, analyse_chapters):
 
         self.show_frame(curr_frame_name, 'LoadingScreen')
 
         my_thread = CoocMatrixThread(main_func.load_from_txt,
-                                     self.path_to_txt + cts.mec_txt_folder_name + txt_input_name,
-                                     encoding_type_value, save_in_xlsx, self.path_to_xlsx + workbook_name,
+                                     path_dict, txt_input_name,
+                                     encoding_type_value, save_in_xlsx, workbook_name,
                                      enable_verb_filter, enable_lemmatization)
 
         my_thread.start()
         my_thread.join()
 
         self.frames['VectorDrawGui'].cooc_matrix_vector_plotter = my_thread.get_cooc_matrix()
+
+        if analyse_chapters:
+            my_thread = CoocMatrixThread(main_func.load_from_chapters, path_dict, encoding_type_value, save_in_xlsx,
+                                                                      enable_verb_filter, enable_lemmatization)
+
+            my_thread.start()
+            my_thread.join()
 
         self.show_frame('LoadingScreen', 'VectorDrawGui')
 
@@ -99,7 +106,7 @@ class MainGUI(Tk):
             self.destroy()
 
 
-class LoadTxtOrXlsxFrame(Frame):
+class ChoiceFrame(Frame):
 
     def __init__(self, parent, controller):
         Frame.__init__(self, parent)
@@ -121,7 +128,7 @@ class LoadTxtOrXlsxFrame(Frame):
 
     @staticmethod
     def name():
-        return 'LoadTxtOrXlsxFrame'
+        return 'ChoiceFrame'
 
 
 class LoadTxt(Frame):
@@ -137,6 +144,7 @@ class LoadTxt(Frame):
         self.label_2.grid(row=1, sticky=W+E+S, pady=(0, 10), columnspan=2)
 
         self.txt_input_name_value = StringVar()
+        self.txt_input_name_value.set('filtered_input.txt')
         self.txt_input_name_entry = Entry(self, textvariable=self.txt_input_name_value)
         self.txt_input_name_entry.grid(row=2, sticky=W+E, columnspan=2, padx=30)
 
@@ -152,15 +160,34 @@ class LoadTxt(Frame):
                                                 self.encoding_type_value, "ascii", "unicode", "utf8", "utf16")
         self.encoding_type_options.grid(row=0, column=1, sticky=W)
 
+        self.inside_frame_book = Frame(self)
+        self.inside_frame_book.grid(row=4, columnspan=2, padx=30, pady=15)
+
+        self.label_4 = Label(self.inside_frame_book, text='Select the book: ')
+        self.label_4.grid(row=0, column=0, sticky=E)
+
+        self.book_value = StringVar()
+        self.book_value.set('product_design_and_development')
+        self.book_options = OptionMenu(self.inside_frame_book,
+                                                self.book_value, "product_design_and_development")
+        self.book_options.grid(row=0, column=1, sticky=W)
+
+        self.analyse_chapters_value = BooleanVar()
+        self.analyse_chapters_value.set(False)
+        self.analyse_chapters_checkbutton = Checkbutton(self, text='Analyse chapter by chapter?',
+                                                        variable=self.analyse_chapters_value, onvalue=True,
+                                                        offvalue=False)
+        self.analyse_chapters_checkbutton.grid(row=5, pady=15, sticky=W+E, columnspan=2)
+
         self.save_in_xlsx_value = BooleanVar()
         self.save_in_xlsx_value.set(False)
         self.save_in_xlsx_checkbutton = Checkbutton(self, text="Save the results in xlsx file?",
                                                     variable=self.save_in_xlsx_value, onvalue=True, offvalue=False)
 
-        self.save_in_xlsx_checkbutton.grid(row=4, pady=15, sticky=W+E, columnspan=2)
+        self.save_in_xlsx_checkbutton.grid(row=6, pady=15, sticky=W+E, columnspan=2)
 
         self.matrix_options_frame = Frame(self)
-        self.matrix_options_frame.grid(row=5, columnspan=2, padx=30, pady=15)
+        self.matrix_options_frame.grid(row=7, columnspan=2, padx=30, pady=15)
 
         self.enable_verb_filter_value = BooleanVar()
         self.enable_verb_filter_value.set(True)
@@ -178,20 +205,20 @@ class LoadTxt(Frame):
 
         self.enable_lemmatization_checkbutton.grid(row=0, column=1, sticky=W, columnspan=1)
 
-        self.label_4 = Label(self, text='Enter the name of the xlsx file', state=DISABLED)
-        self.label_4.grid(row=6, pady=15, sticky=W+E, columnspan=2)
+        self.label_5 = Label(self, text='Enter the name of the xlsx file', state=DISABLED)
+        self.label_5.grid(row=8, pady=15, sticky=W+E, columnspan=2)
 
         self.workbook_name_value = StringVar()
         self.workbook_name_entry = Entry(self, textvariable=self.workbook_name_value, state=DISABLED)
 
-        self.workbook_name_entry.grid(row=7, pady=(0, 15), columnspan=2, sticky=W+E, padx=30)
+        self.workbook_name_entry.grid(row=9, pady=(0, 15), columnspan=2, sticky=W+E, padx=30)
 
         self.submit_button = Button(self, text='Submit', command=self.submit_function)
-        self.submit_button.grid(row=8, pady=(0, 15), padx=15, columnspan=2, sticky=W+E)
+        self.submit_button.grid(row=10, pady=(0, 15), padx=15, columnspan=2, sticky=W+E)
 
         self.back_button = Button(self, text='Go Back',
-                                  command=lambda: self.controller.show_frame(self.name(), 'LoadTxtOrXlsxFrame'))
-        self.back_button.grid(row=9, pady=(0, 10), padx=15, sticky=W+E)
+                                  command=lambda: self.controller.show_frame(self.name(), 'ChoiceFrame'))
+        self.back_button.grid(row=11, pady=(0, 10), padx=15, sticky=W+E)
 
         self.save_in_xlsx_checkbutton.config(command=self.checkbutton_pressed)
 
@@ -201,23 +228,26 @@ class LoadTxt(Frame):
 
     def checkbutton_pressed(self):
         if self.save_in_xlsx_value.get():
-            self.label_4['state'] = 'normal'
+            self.label_5['state'] = 'normal'
             self.workbook_name_entry['state'] = 'normal'
         else:
-            self.label_4['state'] = 'disabled'
+            self.label_5['state'] = 'disabled'
             self.workbook_name_entry['state'] = 'disabled'
 
     def submit_function(self):
-        success = check_for_file(self.controller.path_to_txt + cts.mec_txt_folder_name,
-                                 self.txt_input_name_value.get(), self.controller.change_status)
+        success = check_for_file(cts.data[self.book_value.get()]['path_to_input'], self.txt_input_name_value.get(),
+                                 self.controller.change_status)
 
         if not success:
             return
 
+        path_dict = cts.data[self.book_value.get()]
+
         processing_thread = NormalThread(self.controller.create_cooc_matrix_from_txt, self.name(),
-                                         self.txt_input_name_value.get(), self.encoding_type_value.get(),
+                                         self.txt_input_name_value.get(), path_dict, self.encoding_type_value.get(),
                                          self.save_in_xlsx_value.get(), self.workbook_name_value.get(),
-                                         self.enable_verb_filter_value.get(), self.enable_lemmatization_value.get())
+                                         self.enable_verb_filter_value.get(), self.enable_lemmatization_value.get(),
+                                         self.analyse_chapters_value.get())
 
         processing_thread.start()
 
@@ -243,7 +273,7 @@ class LoadXlsx(Frame):
         self.submit_button.grid(row=3, pady=(0, 15), padx=15, sticky=W+E)
 
         self.back_button = Button(self, text='Go Back',
-                                  command=lambda: self.controller.show_frame(self.name(), 'LoadTxtOrXlsxFrame'))
+                                  command=lambda: self.controller.show_frame(self.name(), 'ChoiceFrame'))
         self.back_button.grid(row=4, pady=(0, 10), padx=15, sticky=W+E)
 
     @staticmethod
@@ -262,45 +292,6 @@ class LoadXlsx(Frame):
 
         processing_thread.start()
 
-
-class LoadChapters(Frame):
-    def __init__(self, parent, controller):
-        Frame.__init__(self, parent)
-
-        self.controller = controller
-
-        self.label_1 = Label(self, text='Enter the name of the book to load the content of the chapters')
-        self.label_1.grid(row=0, padx=15, pady=(15, 0), sticky=E+W+S)
-
-        self.label_2 = Label(self, text='The book folder must be on the folder \'txtFiles\'')
-        self.label_1.grid(row=1, padx=15, pady=(0, 10), sticky=E + W + S)
-
-        self.book_name_value = StringVar()
-        self.book_name_entry = Entry(self, textvariable=self.book_name_value)
-        self.book_name_entry.grid(row=2, padx=15, pady=(0, 15), sticky=E+W)
-
-        self.submit_button = Button(self, text='Submit', command=self.submit_function)
-        self.submit_button.grid(row=3, pady=(0, 15), padx=15, sticky=W+E)
-
-        self.back_button = Button(self, text='Go Back',
-                                  command=lambda: self.controller.show_frame(self.name(), 'LoadTxtOrXlsxFrame'))
-        self.back_button.grid(row=4, pady=(0, 10), padx=15, sticky=W+E)
-
-    @staticmethod
-    def name():
-        return 'LoadChapters'
-
-    def submit_function(self):
-        success = check_for_file(self.controller.path_to_xlsx, self.book_name_value.get(),
-                                 self.controller.change_status)
-
-        if not success:
-            return
-
-        processing_thread = NormalThread(self.controller.create_cooc_matrix_from_xlsx, self.name(),
-                                         self.book_name_value.get())
-
-        processing_thread.start()
 
 class LoadingScreen(Frame):
 
@@ -430,15 +421,16 @@ def check_for_file(path, file_name, update_status_func):
         return False
 
 
-def check_for_folder(path, update_status_func):
-    print(path)
-    if os.path.isfile(path):
-        update_status_func(ok_status)
-        return True
-    else:
-        update_status_func(file_not_found_status + ': ' + file_name)
-        return False
+# def check_for_folder(path, update_status_func):
+#     print(path)
+#     if os.path.isfile(path):
+#         update_status_func(ok_status)
+#         return True
+#     else:
+#         update_status_func(file_not_found_status + ': ' + file_name)
+#         return False
 
 
 if __name__ == "__main__":
+    utils.setup_environment()
     main()

@@ -4,12 +4,6 @@ import java.io.*;
 
 import edu.cmu.lti.ws4j.WS4J;
 
-//import org.jfree.chart.ChartFactory;
-//import org.jfree.chart.JFreeChart;
-//import org.jfree.chart.plot.PlotOrientation;
-//import org.jfree.data.category.DefaultCategoryDataset;
-//import org.jfree.chart.ChartUtilities;
-
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
@@ -149,7 +143,7 @@ public class Utils {
             i++;
         }
 
-        PrintWriter writter = null;
+        PrintWriter writter;
         try {
                 writter = new PrintWriter(fileToSave, "UTF-8");
 
@@ -161,7 +155,7 @@ public class Utils {
                 }
 
                 writter.close();
-        } catch(Exception e) {
+        } catch(FileNotFoundException | UnsupportedEncodingException e) {
                 System.out.println("Path not found ...");
         }
     }

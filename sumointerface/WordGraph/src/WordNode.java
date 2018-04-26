@@ -9,7 +9,7 @@ public class WordNode {
 
 	public WordNode(WordContainer nodeWord) {
 		_word = nodeWord;
-		_fromInterview = (nodeWord.getHexColor().equals("#000000"))? false : true;
+		_fromInterview = !(nodeWord.getHexColor().equals("#000000"));
 		_uniqueCode = Utils.wordCoder(_word.getReducedWord(), _word.getSynset());
 		_sonNodes = new ArrayList<WordNode>();
 	}

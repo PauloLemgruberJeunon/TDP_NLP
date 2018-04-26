@@ -309,12 +309,12 @@ def complete_the_loading(rows, noun_rows, matrix):
         i += 1
 
 
-def read_all_stages():
+def read_all_stages(input_address, nouns_for_hypernyms_file_name, list_of_verbs_file_name):
     content_dict = {}
 
-    wb = pd.ExcelFile(cts.path_to_interview_xlsx+ 'All_nouns_for_hypernyms_Copia.xlsx')
+    wb = pd.ExcelFile(input_address + nouns_for_hypernyms_file_name)
 
-    wb2 = pd.ExcelFile(cts.path_to_interview_xlsx + 'list_of_verbs.xlsx')
+    wb2 = pd.ExcelFile(input_address + list_of_verbs_file_name)
     sheet2 = wb2.parse('sheet2')
 
     for i in range(1,7):
@@ -385,8 +385,8 @@ def read_all_stages():
     return content_dict
 
 
-def read_all_nouns():
-    wb = pd.ExcelFile(cts.path_to_interview_xlsx + 'All_nouns_for_hypernyms_Copia.xlsx')
+def read_all_nouns(input_address, nouns_for_hypernyms_file_name, list_of_verbs_file_name):
+    wb = pd.ExcelFile(input_address + nouns_for_hypernyms_file_name)
     sheet = wb.parse("all nouns")
     noun_list = sheet['Active nouns'].values.tolist().copy()
     department_list = sheet['Department'].values.tolist().copy()
@@ -401,8 +401,8 @@ def read_all_nouns():
         [str(full_noun_and_verb_list[i]).strip() for i in range(len(full_noun_and_verb_list))]
     nature_of_entities_list = [str(nature_of_entities_list[i]).strip() for i in range(len(nature_of_entities_list))]
 
-    wb3 = pd.ExcelFile(cts.path_to_interview_xlsx + 'list_of_verbs.xlsx')
-    sheet3 = wb3.parse('sheet2')
+    wb2 = pd.ExcelFile(input_address + list_of_verbs_file_name)
+    sheet3 = wb2.parse('sheet2')
 
     find_associated_verbs_in_xlsx_sheet(full_noun_and_verb_list, sheet3)
 
@@ -582,8 +582,7 @@ Below are functions related to saving in text archives
 '''
 
 
-def save_tagged_words(tagged_text,
-                      file_name=cts.path_to_mec_txt_out + cts.sep +'tagged_text.txt',
+def save_tagged_words(tagged_text, path_dict,
                       encoding='utf8'):
     """
     Saves a list of tuples in a file. Each tuple contains two strings, the first for the word and the second for
@@ -594,15 +593,15 @@ def save_tagged_words(tagged_text,
     :param encoding: type of encoding of the file
     :return: None
     """
-    f2 = open(file_name, 'w', encoding=encoding)
+    f2 = open(path_dict['path_to_output_txt'], 'w', encoding=encoding)
     for (word, tag) in tagged_text:
         f2.write(word + ' -> ' + tag + '\n')
     f2.close()
 
 
-def save_list_of_tuples(list_of_tuples, source_name, purpose_name, encoding='utf8'):
+def save_list_of_tuples(list_of_tuples, folder_path, source_name, purpose_name, encoding='utf8'):
 
-    output_file = open(cts.path_to_txtFolder + cts.mec_txt_folder_name + source_name + '_' + purpose_name + '.txt', 'w',
+    output_file = open(folder_path + source_name + '_' + purpose_name + '.txt', 'w',
                        encoding=encoding)
     for tuple in list_of_tuples:
         for value in tuple:
@@ -615,11 +614,11 @@ Below are functions related to create gdf archives
 '''
 
 
-def save_noun_sim_matrix_in_gdf(cooc_matrix, noun_dict, methods, book_name):
+def save_noun_sim_matrix_in_gdf(cooc_matrix, noun_dict, methods, book_name, path_dict):
 
     output_files = []
     for method in methods:
-        output_files.append(open(cts.path_to_book_sim_gdf + book_name + '_' + method + '.gdf', 'w'))
+        output_files.append(open(path_dict['path_to_output_book_gdf'] + book_name + '_' + method + '.gdf', 'w'))
 
     for output_file_index in range(len(output_files)):
         # print('Creating the graph archives ... current progress = ' + str(output_file_index) + '/' +
@@ -781,10 +780,14 @@ Below are Java interface functions
 '''
 
 
-def execute_java2(stage_dict, all_stages):
+def execute_java(stage_dict, all_stages):
     gateway = JavaGateway()
     word_graph_handler = gateway.entry_point
     stage_hashmap = gateway.jvm.java.util.HashMap()
+    pathDict = gateway.jvm.java.util.HashMap()
+
+    for (key,value) in cts.data['interview'].items():
+        pathDict.put(key, value)
 
     wordCoder = word_graph_handler.wordCoder
 
@@ -812,52 +815,18 @@ def execute_java2(stage_dict, all_stages):
 
         stage_hashmap.put(stage_name, word_container_hashmap)
 
-    word_graph = word_graph_handler.getWordGraph(stage_hashmap, cts.path_to_interview_hypernym_gdf + "_hyperGraph.gdf")
+    word_graph = word_graph_handler.getWordGraph(stage_hashmap,
+                                                 pathDict)
+
     word_graph.wordGraphCreationHandler(all_stages)
-
-
-def execute_java(noun_list, department_list, full_noun_and_verb_list, synset_list, nature_of_entities_list, sheet_name):
-
-    gateway = JavaGateway()
-    word_graph_handler = gateway.entry_point
-    word_container_hashmap = gateway.jvm.java.util.HashMap()
-
-    wordCoder = word_graph_handler.wordCoder
-
-    for i in range(len(noun_list)):
-        word_container = gateway.jvm.WordContainer()
-        word_container.setFullWord(full_noun_and_verb_list[i][0])
-        word_container.setVerb(full_noun_and_verb_list[i][1])
-        word_container.setReducedWord(noun_list[i])
-        word_container.setSynset(str(synset_list[i]).strip())
-        word_container.setNatureOfEntity(nature_of_entities_list[i])
-        curr_dept = department_list[i]
-        if curr_dept in cts.department_colors:
-            color = cts.department_colors[curr_dept]
-        else:
-            color = "#000000"
-
-        word_container.setHexColor(color)
-
-        word_container_hashmap.put(wordCoder(word_container.getReducedWord(), word_container.getSynset()),
-                                   word_container)
-
-    word_graph = word_graph_handler.getWordGraph(word_container_hashmap,
-                                                 cts.path_to_interview_hypernym_gdf + sheet_name + "_hyperGraph.gdf")
-
-    word_graph.startWordGraph()
 
 
 '''
 Below here are some pre-steps that have to be made
 '''
 
-
-create_new_directory(cts.path_to_gdfFolder)
-create_new_directory(cts.path_to_xlsxFolder)
-create_new_directory(cts.path_to_mec_txt_out)
-create_new_directory(cts.path_to_book_sim_gdf)
-create_new_directory(cts.path_to_interview_hypernym_gdf)
-create_new_directory(cts.path_to_interview_sim_gdf)
-create_new_directory(cts.path_to_interview_xlsx)
-create_new_directory(cts.path_to_generated_xlsx)
+def setup_environment():
+    for dict in cts.data.values():
+        for value in dict.values():
+            if isinstance(value, str):
+                create_new_directory(value)

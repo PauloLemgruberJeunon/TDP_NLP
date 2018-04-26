@@ -3,14 +3,31 @@ import projectFiles.utils as utils
 import projectFiles.constants as cts
 
 
-def load_from_txt(txt_input_path, encoding, save_in_xlsx, workbook_name, enable_verb_filter, enable_lemmatization,
-                  chapter='NA'):
+def load_from_txt(path_dict, input_name, encoding, save_in_xlsx, workbook_name, enable_verb_filter,
+                  enable_lemmatization, chapter='NA'):
 
-    text_string_input = utils.read_text_input(txt_input_path, encoding, True)
+    if chapter == 'NA':
+        path_to_input = path_dict['path_to_input']
+        path_to_output_txt = path_dict['path_to_output_txt']
+        path_to_output_xlsx = path_dict['path_to_output_xlsx']
+    else:
+        path_to_input = path_dict['path_to_input_chapters']
+        path_to_output_txt = path_dict['path_to_output_txt_chapters']
+        path_to_output_xlsx = path_dict['path_to_output_xlsx_chapters']
+
+    if enable_lemmatization:
+        verb_filter_lemmatization_code = '_1'
+    else:
+        verb_filter_lemmatization_code = '_0'
+
+    if enable_verb_filter:
+        verb_filter_lemmatization_code += '_1'
+    else:
+        verb_filter_lemmatization_code += '_0'
+
+    text_string_input = utils.read_text_input(path_to_input + input_name, encoding, True)
 
     tokens_list = utils.tokenize_string(text_string_input, True)
-
-    print(tokens_list)
 
     tagged_tokens = utils.tag_tokens_using_stanford_corenlp(tokens_list)
 
@@ -19,24 +36,22 @@ def load_from_txt(txt_input_path, encoding, save_in_xlsx, workbook_name, enable_
 
     windows = content_dict['windows']
 
-    if enable_verb_filter:
-        verb_filter_code = '1'
-    else:
-        verb_filter_code = '0'
-
     list_of_tuples = utils.sort_dict(content_dict['verb_frequency_dict'])
-    utils.save_list_of_tuples(list_of_tuples, 'PDandD_chapter' + chapter , 'verb_frequency_' + verb_filter_code,
-                              encoding)
+
+    utils.save_list_of_tuples(list_of_tuples, path_to_output_txt, 'PDandD_chapter' + chapter,
+                              'verb_frequency' + verb_filter_lemmatization_code, encoding)
 
     # Will create the co-occurrence matrix with the obtained windows
     cooc_matrix = mu.CoocMatrix(windows, enable_lemmatization=enable_lemmatization)
 
-    utils.save_list_of_tuples(cooc_matrix.get_20_percent_of_highest_pairs(), 'PDandD_chapter' + chapter,
-                              '20PerCentHighestPairs_' + verb_filter_code, encoding)
+    utils.save_list_of_tuples(cooc_matrix.get_20_percent_of_highest_pairs(), path_to_output_txt,
+                              'PDandD_chapter' + chapter, '20PerCentHighestPairs' + verb_filter_lemmatization_code,
+                              encoding)
 
     if save_in_xlsx:
+
         # The worksheet will be saved in a excel workbook with the file name and location equal to the string below
-        workbook = utils.create_workbook(workbook_name)
+        workbook = utils.create_workbook(path_to_output_xlsx + workbook_name)
 
         pure_frequency_count_sheet = utils.get_new_worksheet('pure_frequency_count', workbook)
 
@@ -44,7 +59,6 @@ def load_from_txt(txt_input_path, encoding, save_in_xlsx, workbook_name, enable_
         utils.write_cooc_matrix(utils.invert_dictionary(cooc_matrix.noun_rows),
                                 utils.invert_dictionary(cooc_matrix.verb_columns), cooc_matrix.matrix,
                                 pure_frequency_count_sheet)
-
 
     # Will calculate the PPMI of the normal and the filtered matrices
     cooc_matrix.matrix = mu.CoocMatrix.calc_ppmi(cooc_matrix.matrix, 1, 1)
@@ -71,20 +85,20 @@ def load_from_txt(txt_input_path, encoding, save_in_xlsx, workbook_name, enable_
         #                         inverted_matrix_noun_rows, cooc_matrix.soc_pmi_matrix,
         #                         worksheet2)
 
-        ordered_verbs =  utils.sort_dict(cooc_matrix.verb_filtered_arrays)
-        ordered_verbs = [ordered_verbs[i][0] for i in range(len(ordered_verbs))]
+        ordered_verbs = utils.sort_dict(cooc_matrix.verb_filtered_arrays)
+        ordered_verbs = [ordered_verbs[l][0] for l in range(len(ordered_verbs))]
         utils.write_verb_filtered_arrays(cooc_matrix.nouns_from_verb_arrays, cooc_matrix.verb_filtered_arrays,
                                          ordered_verbs, worksheet3, workbook)
 
         utils.close_workbook(workbook)
 
-    # cooc_matrix.calculate_sim_matrix()
-    # inverted_noun_rows  = utils.invert_dictionary(cooc_matrix.noun_rows)
-    # temp_noun_rows_list = [inverted_noun_rows[i] for i in range(len(inverted_noun_rows))]
-    # cooc_matrix.noun_to_noun_sim_matrices = mu.calculate_sim_matrix_from_list(temp_noun_rows_list,
-    #                                                                           cts.all_semantic_similarity_methods)
-    # utils.save_noun_sim_matrix_in_gdf(cooc_matrix, cooc_matrix.noun_rows, cts.all_semantic_similarity_methods,
-    #                                   'PDandD')
+    if chapter == 'NA':
+        inverted_noun_rows = utils.invert_dictionary(cooc_matrix.noun_rows)
+        temp_noun_rows_list = [inverted_noun_rows[i] for i in range(len(inverted_noun_rows))]
+        cooc_matrix.noun_to_noun_sim_matrices = mu.calculate_sim_matrix_from_list(temp_noun_rows_list,
+                                                                                  cts.all_semantic_similarity_methods)
+        utils.save_noun_sim_matrix_in_gdf(cooc_matrix, cooc_matrix.noun_rows, cts.all_semantic_similarity_methods,
+                                          'PDandD', path_dict)
 
     return cooc_matrix.plot_two_word_vectors
 
@@ -96,11 +110,12 @@ def load_from_xlsx(xlsx_file_path):
     return cooc_matrix.plot_two_word_vectors
 
 
-def semantic_similarity_interview_graph(all_stages=False, eliminate_same_department_edges=True):
-    methods = cts.all_semantic_similarity_methods
+def semantic_similarity_interview_graph(path_dict, all_stages=False, eliminate_same_department_edges=True):
+    methods = cts.all_semantic_similarity_methods + ['average_of_methods']
 
     if all_stages:
-        stages_dict = utils.read_all_stages()
+        stages_dict = utils.read_all_stages(cts.data['interview']['path_to_input'],
+                                            'all_nouns_for_hypernyms_treated.xlsx', 'list_of_verbs.xlsx')
 
         for stage in stages_dict.keys():
             curr_stage_dict = stages_dict[stage]
@@ -109,38 +124,53 @@ def semantic_similarity_interview_graph(all_stages=False, eliminate_same_departm
                                                 curr_stage_dict["department_list"],
                                                 curr_stage_dict["full_noun_and_verb_list"],
                                                 curr_stage_dict["synset_list"], methods,
-                                                cts.path_to_interview_sim_gdf, 'semanticSimFromXlsx_' + stage,
-                                                eliminate_same_department_edges)
+                                                path_dict['path_to_output_gdf_interview_sim'],
+                                                'semanticSimFromXlsx_' + stage, eliminate_same_department_edges)
     else:
-        curr_stage_dict = utils.read_all_nouns()
+        curr_stage_dict = utils.read_all_nouns(cts.data['interview']['path_to_input'],
+                                            'all_nouns_for_hypernyms_treated.xlsx', 'list_of_verbs.xlsx')
         noun_to_noun_sim_matrices = mu.calculate_sim_matrix_from_list(curr_stage_dict["noun_list"], methods)
         utils.save_noun_sim_matrix_in_gdf_2(noun_to_noun_sim_matrices, curr_stage_dict["noun_list"],
                                             curr_stage_dict["department_list"],
                                             curr_stage_dict["full_noun_and_verb_list"],
                                             curr_stage_dict["synset_list"], methods,
-                                            cts.path_to_interview_sim_gdf, 'semanticSimFromXlsx',
-                                            eliminate_same_department_edges)
+                                            path_dict['path_to_output_gdf_interview_sim'],
+                                            'semanticSimFromXlsx', eliminate_same_department_edges)
 
 
 def hypernym_interview_graph(all_stages=False):
 
-
-
     if all_stages:
-        stages_dict = utils.read_all_stages()
+        stages_dict = utils.read_all_stages(cts.data['interview']['path_to_input'],
+                                            'all_nouns_for_hypernyms_treated.xlsx', 'list_of_verbs.xlsx')
     else:
-        content_dict = utils.read_all_nouns()
+        content_dict = utils.read_all_nouns(cts.data['interview']['path_to_input'],
+                                            'all_nouns_for_hypernyms_treated.xlsx', 'list_of_verbs.xlsx')
         stages_dict = {'all nouns': content_dict}
 
-    utils.execute_java2(stages_dict, all_stages)
+    utils.execute_java(stages_dict, all_stages)
 
 
-# for i in range(1, 19) :
-#     load_from_txt(cts.path_to_mec_txt_out + 'separatedChapters/' + 'chapter' + str(i), 'utf8', True,
-#                   cts.path_to_generated_xlsx + 'mec_chapter_' + str(i) + '.xlsx', True, True, str(i))
-#
+def load_from_chapters(path_dict, encoding, save_in_xlsx, enable_verb_filter, enable_lemmatization):
 
-hypernym_interview_graph()
-hypernym_interview_graph(True)
-# semantic_similarity_interview_graph(True)
-# semantic_similarity_interview_graph(False)
+    if enable_lemmatization:
+        verb_filter_lemmatization_code = '_1'
+    else:
+        verb_filter_lemmatization_code = '_0'
+
+    if enable_verb_filter:
+        verb_filter_lemmatization_code += '_1'
+    else:
+        verb_filter_lemmatization_code += '_0'
+
+    number_of_chapters = int(path_dict['number_of_chapters']) + 1
+
+    for i in range(1, number_of_chapters):
+        load_from_txt(path_dict, 'chapter' + str(i), encoding, save_in_xlsx, 'chapter' + str(i) +
+                      verb_filter_lemmatization_code + '.xlsx', enable_verb_filter, enable_lemmatization, str(i))
+
+
+# hypernym_interview_graph()
+# hypernym_interview_graph(True)
+# semantic_similarity_interview_graph(cts.data['interview'], True)
+# semantic_similarity_interview_graph(cts.data['interview'], False)

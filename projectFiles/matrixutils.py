@@ -7,7 +7,9 @@ from nltk.corpus import wordnet
 from nltk.corpus import wordnet_ic
 
 import projectFiles.utils as utils
-import projectFiles.constants as cts
+
+# from pywsd.lesk import cosine_lesk
+
 
 lch_maximum_obtained_value = 3.63758
 
@@ -22,10 +24,12 @@ class CoocMatrix:
 
         #  Dictionary have a noun for key and a row index for value
         self.noun_rows = {}
+        self.wordnet_nouns = {}
         self.noun_rows_size = 0
 
         #  Dictionary have a verb for key and a column index for value
         self.verb_columns = {}
+        self.wordnet_verbs = {}
         self.verb_columns_size = 0
 
         #  The co-occurrence matrix
@@ -105,6 +109,12 @@ class CoocMatrix:
             central_verb_index = window[1]
             window = window[0]
 
+            # string_from_window = ''
+            # for word in window:
+            #     string_from_window = string_from_window + ' ' + word[0]
+
+
+
             word_counter = 0
             for (word, tag) in window:  # Iterates over each tagged word inside the window
 
@@ -118,6 +128,7 @@ class CoocMatrix:
                     window_verbs.append(word)
                     if word not in self.verb_columns:
                         self.verb_columns[word] = self.verb_columns_size
+                        # self.wordnet_verbs[word] = cosine_lesk(string_from_window, word, pos='v')
                         self.verb_columns_size += 1
                         if self.verb_columns_size > 2:
                             self.matrix = np.lib.pad(self.matrix, ((0, 0), (0, 1)), 'constant', constant_values=0)
@@ -130,11 +141,17 @@ class CoocMatrix:
                     window_nouns.append(word)
                     if word not in self.noun_rows:
                         self.noun_rows[word] = self.noun_rows_size
+                        # self.wordnet_nouns[word] = cosine_lesk(string_from_window, word, pos='n')
                         self.noun_rows_size += 1
                         if self.noun_rows_size > 2:
                             self.matrix = np.lib.pad(self.matrix, ((0, 1), (0, 0)), 'constant', constant_values=0)
 
                 word_counter += 1
+
+            # print(string_from_window)
+            # for noun in window_nouns:
+            #     if self.wordnet_nouns[noun] is not None:
+            #         print(noun + ' -> ' + str(self.wordnet_nouns[noun]) + ': ' + self.wordnet_nouns[noun].definition())
 
             for verb in window_verbs:  # fills the matrix with the co-occurrences
                 j = self.verb_columns.get(verb)
@@ -621,8 +638,13 @@ def zero_counter(vec):
     return counter
 
 
-def save_noun_similarity_array(file_name, encoding, noun_sim_array):
-    output_file = open(cts.path_to_txtFolder+cts.mec_txt_folder_name+file_name, 'w', encoding=encoding)
+def save_noun_similarity_array(file_name, path_dict, encoding, noun_sim_array, isChapter=False):
+    if isChapter:
+        path = path_dict['path_to_output_txt_chapters']
+    else:
+        path = path_dict['path_to_output_txt']
+
+    output_file = open(path + file_name, 'w', encoding=encoding)
 
     for (noun1, noun2, sim_value) in noun_sim_array:
         output_file.write(noun1 + ' with ' + noun2 + ': ' + str(sim_value) + '\n')
@@ -630,7 +652,7 @@ def save_noun_similarity_array(file_name, encoding, noun_sim_array):
     output_file.close()
 
 
-def calculate_sim_matrix_from_list(word_list, methods_list, word_pos='n'):
+def calculate_sim_matrix_from_list(word_list, methods_list, word_pos='n', full_synsets=False, all_matrix=False):
 
     print('calculate_sim_matrix_from_list started')
 
@@ -639,60 +661,88 @@ def calculate_sim_matrix_from_list(word_list, methods_list, word_pos='n'):
     word_list_size = len(word_list)
     for method in methods_list:
         noun_to_noun_sim_matrices[method] = np.add(np.zeros((word_list_size, word_list_size), dtype=float),
-                                                            0.01)
+                                                            0.001)
+
+    noun_to_noun_sim_matrices['average_of_methods'] = np.add(np.zeros((word_list_size, word_list_size), dtype=float),
+                                               0.001)
 
     brown_ic = wordnet_ic.ic('ic-brown.dat')
 
     i = 0
-    while i < (word_list_size):
-        j = 0
-        w1 = wordnet.synsets(word_list[i], word_pos)
-        if not w1:
-            print('Not able to find this noun: ' + word_list[i])
-            i += 1
-            continue
+    if all_matrix:
+        bigger_loop_limit = word_list_size
+    else:
+        bigger_loop_limit = (word_list_size - 1)
 
-        w1 = w1[0]
+    while i < bigger_loop_limit:
 
-        while j < word_list_size:
-            w2 = wordnet.synsets(word_list[j], word_pos)
-            if not w2:
-                j += 1
+        if all_matrix:
+            j = 0
+        else:
+            j = i + 1
+
+        if full_synsets:
+            w1 = wordnet.synset(word_list[i])
+        else:
+            w1 = wordnet.synsets(word_list[i], word_pos)
+
+            if not w1:
+                print('Not able to find this noun: ' + word_list[i])
+                i += 1
                 continue
 
-            w2 = w2[0]
+            w1 = w1[0]
+
+        while j < word_list_size:
+
+            if full_synsets:
+                w2 = wordnet.synset(word_list[j])
+            else:
+                w2 = wordnet.synsets(word_list[j], word_pos)
+
+                if not w2:
+                    j += 1
+                    continue
+
+                w2 = w2[0]
 
             if 'wup' in noun_to_noun_sim_matrices:
                 value = w1.wup_similarity(w2)
-                value = utils.limit_value(value, 0.01, 1.0)
+                value = utils.limit_value(value, 0.001, 1.0)
                 noun_to_noun_sim_matrices['wup'][i][j] = value
 
             if 'jcn' in noun_to_noun_sim_matrices:
                 value = w1.jcn_similarity(w2, brown_ic)
-                value = utils.limit_value(value, 0.01, 1.0)
+                value = utils.limit_value(value, 0.001, 1.0)
                 noun_to_noun_sim_matrices['jcn'][i][j] = value
 
             if 'lin' in noun_to_noun_sim_matrices:
+                # print('\nlin:')
+                # print(w1)
+                # print(w2)
+                # print('')
                 value = w1.lin_similarity(w2, brown_ic)
-                value = utils.limit_value(value, 0.01, 1.0)
+                value = utils.limit_value(value, 0.001, 1.0)
                 noun_to_noun_sim_matrices['lin'][i][j] = value
 
             if 'lch' in noun_to_noun_sim_matrices:
                 value = w1.lch_similarity(w2)
-                value = value / 3.637
-                value = utils.limit_value(value, 0.01, 1.0)
+                if word_pos == 'n':
+                    value = value / 3.6375861597263857
+                else:
+                    value = value / 3.258096538021482
+                value = utils.limit_value(value, 0.001, 1.0)
                 noun_to_noun_sim_matrices['lch'][i][j] = value
 
-            if 'methods_average' in noun_to_noun_sim_matrices:
 
-                value = 0.0
-                for method in methods_list:
-                    value += noun_to_noun_sim_matrices[method][i][j]
+            value = 0.0
+            for method in methods_list:
+                value += noun_to_noun_sim_matrices[method][i][j]
 
-                value = value/(len(methods_list) - 1.0)
+            value = value/len(methods_list)
 
-                value = utils.limit_value(value, 0.01, 1.0)
-                noun_to_noun_sim_matrices['methods_average'][i][j] = value
+            value = utils.limit_value(value, 0.001, 1.0)
+            noun_to_noun_sim_matrices['average_of_methods'][i][j] = value
 
             j += 1
 

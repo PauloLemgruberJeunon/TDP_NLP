@@ -1,0 +1,26 @@
+{
+  "product_design_and_development": {
+    "path_to_input":"/home/paulojeunon/Desktop/TDP_NLP/books/product_design_and_development/input/txtFiles/",
+	"path_to_input_chapters":"/home/paulojeunon/Desktop/TDP_NLP/books/product_design_and_development/input/txtFiles/separatedChapters/",
+	"path_to_output_txt":"/home/paulojeunon/Desktop/TDP_NLP/books/product_design_and_development/output/txtFiles/",
+	"path_to_output_txt_chapters":"/home/paulojeunon/Desktop/TDP_NLP/books/product_design_and_development/output/txtFiles/separatedChapters/",
+    "path_to_output_xlsx":"/home/paulojeunon/Desktop/TDP_NLP/books/product_design_and_development/output/xlsxFiles/",
+    "path_to_output_xlsx_chapters":"/home/paulojeunon/Desktop/TDP_NLP/books/product_design_and_development/output/xlsxFiles/separatedChapters/",
+    "path_to_output_book_gdf":"/home/paulojeunon/Desktop/TDP_NLP/books/product_design_and_development/output/gdfFiles/",
+    "number_of_chapters":18
+  },
+
+  "interview": {
+    "path_to_input":"/home/paulojeunon/Desktop/TDP_NLP/interview/input/",
+    "path_to_output_gdf_interview_sim":"/home/paulojeunon/Desktop/TDP_NLP/interview/output/interviewSimilarity/gdfFiles/",
+    "path_to_output_txt_interview_sim":"/home/paulojeunon/Desktop/TDP_NLP/interview/output/interviewSimilarity/txtFiles/",
+    "path_to_output_gdf_hypernym":"/home/paulojeunon/Desktop/TDP_NLP/interview/output/interviewHypernym/gdfFiles/",
+    "path_to_output_gdf_hypernym_departments":"/home/paulojeunon/Desktop/TDP_NLP/interview/output/interviewHypernym/gdfFiles/departamentSpecific/",
+    "path_to_output_txt_hypernym":"/home/paulojeunon/Desktop/TDP_NLP/interview/output/interviewHypernym/txtFiles/",
+    "path_to_output_txt_hypernym_departments":"/home/paulojeunon/Desktop/TDP_NLP/interview/output/interviewHypernym/txtFiles/departamentSpecific/",
+    "path_to_output_txt_hypernym_path_meas":"/home/paulojeunon/Desktop/TDP_NLP/interview/output/interviewHypernym/txtFiles/hypernymPathMeasurements/",
+    "path_to_output_txt_hypernym_other_meas":"/home/paulojeunon/Desktop/TDP_NLP/interview/output/interviewHypernym/txtFiles/otherGraphMeasurements/",
+    "path_to_output_txt_hypernym_important_nodes":"/home/paulojeunon/Desktop/TDP_NLP/interview/output/interviewHypernym/txtFiles/mostImportantHypernymsNodes/",
+    "path_to_output_xlsx_hypernym":"/home/paulojeunon/Desktop/TDP_NLP/interview/output/interviewHypernym/xlsxFiles/"
+  }
+}
