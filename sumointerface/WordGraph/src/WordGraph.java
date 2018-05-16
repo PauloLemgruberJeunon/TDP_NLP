@@ -247,33 +247,33 @@ public class WordGraph {
             if(currRelations != null) {
                 tempHypernymsList = getHypernymsList(currRelations);
 
-            if(tempHypernymsList.isEmpty()) {
-                return;
-            }
+                if(tempHypernymsList.isEmpty()) {
+                    return;
+                }
 
-            AVPair currAVPair = getHighestSimilarityHypernym(tempHypernymsList, fullWordAndSynset, graph);
+                AVPair currAVPair = getHighestSimilarityHypernym(tempHypernymsList, fullWordAndSynset, graph);
 
-            WordNode newHypernymNode = null;
-            WordNode currNode = graph.get(fullWordAndSynset);
+                WordNode newHypernymNode = null;
+                WordNode currNode = graph.get(fullWordAndSynset);
 
-            String codedWord = Utils.wordCoder(currAVPair.attribute, currAVPair.value);
+                String codedWord = Utils.wordCoder(currAVPair.attribute, currAVPair.value);
 
-            if(graph.containsKey(codedWord) == false) {
-                WordContainer newHypernym = new WordContainer(currAVPair.attribute, currAVPair.attribute,
-                                                                                                          currAVPair.value, "-", "-");
+                if(graph.containsKey(codedWord) == false) {
+                    WordContainer newHypernym = new WordContainer(currAVPair.attribute, currAVPair.attribute,
+                                                                                                              currAVPair.value, "-", "-");
 
-                newHypernymNode = new WordNode(new WordContainer(newHypernym));
-                graph.put(codedWord, newHypernymNode);
+                    newHypernymNode = new WordNode(new WordContainer(newHypernym));
+                    graph.put(codedWord, newHypernymNode);
 
-                findHypernyms(codedWord, graph, edges);
-            }
+                    findHypernyms(codedWord, graph, edges);
+                }
 
-            newHypernymNode = graph.get(codedWord);
+                newHypernymNode = graph.get(codedWord);
 
-            currNode.setMyHypernym(newHypernymNode);
-            newHypernymNode.addSonNode(currNode);
+                currNode.setMyHypernym(newHypernymNode);
+                newHypernymNode.addSonNode(currNode);
 
-            edges.add(new Edge(fullWordAndSynset, codedWord));
+                edges.add(new Edge(fullWordAndSynset, codedWord));
 
             } else if(graph.get(fullWordAndSynset).getSynset().equals("0") == false){
                 System.out.println("[WARNING] Not able to find any relations to this fullWord: " +

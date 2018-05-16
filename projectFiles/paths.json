@@ -6,8 +6,94 @@
 	"path_to_output_txt_chapters":"/home/paulojeunon/Desktop/TDP_NLP/books/product_design_and_development/output/txtFiles/separatedChapters/",
     "path_to_output_xlsx":"/home/paulojeunon/Desktop/TDP_NLP/books/product_design_and_development/output/xlsxFiles/",
     "path_to_output_xlsx_chapters":"/home/paulojeunon/Desktop/TDP_NLP/books/product_design_and_development/output/xlsxFiles/separatedChapters/",
-    "path_to_output_book_gdf":"/home/paulojeunon/Desktop/TDP_NLP/books/product_design_and_development/output/gdfFiles/",
+    "path_to_output_gdf":"/home/paulojeunon/Desktop/TDP_NLP/books/product_design_and_development/output/gdfFiles/",
+    "path_to_output_img":"/home/paulojeunon/Desktop/TDP_NLP/books/product_design_and_development/output/imgFiles/",
+    "path_to_output_img_chapters":"/home/paulojeunon/Desktop/TDP_NLP/books/product_design_and_development/output/imgFiles/separatedChapters/",
+    "department":"Mechanical",
     "number_of_chapters":18
+  },
+
+  "well_completion_design": {
+    "path_to_input":"/home/paulojeunon/Desktop/TDP_NLP/books/well_completion_design/input/txtFiles/",
+	"path_to_input_chapters":"/home/paulojeunon/Desktop/TDP_NLP/books/well_completion_design/input/txtFiles/separatedChapters/",
+	"path_to_output_txt":"/home/paulojeunon/Desktop/TDP_NLP/books/well_completion_design/output/txtFiles/",
+	"path_to_output_txt_chapters":"/home/paulojeunon/Desktop/TDP_NLP/books/well_completion_design/output/txtFiles/separatedChapters/",
+    "path_to_output_xlsx":"/home/paulojeunon/Desktop/TDP_NLP/books/well_completion_design/output/xlsxFiles/",
+    "path_to_output_xlsx_chapters":"/home/paulojeunon/Desktop/TDP_NLP/books/well_completion_design/output/xlsxFiles/separatedChapters/",
+    "path_to_output_gdf":"/home/paulojeunon/Desktop/TDP_NLP/books/well_completion_design/output/gdfFiles/",
+    "path_to_output_img":"/home/paulojeunon/Desktop/TDP_NLP/books/well_completion_design/output/imgFiles/",
+    "path_to_output_img_chapters":"/home/paulojeunon/Desktop/TDP_NLP/books/well_completion_design/output/imgFiles/separatedChapters/",
+    "department":"Petroleum",
+    "number_of_chapters":-1
+  },
+
+  "power_electronics_converters_applications": {
+    "path_to_input":"/home/paulojeunon/Desktop/TDP_NLP/books/power_electronics_converters_applications/input/txtFiles/",
+	"path_to_input_chapters":"/home/paulojeunon/Desktop/TDP_NLP/books/power_electronics_converters_applications/input/txtFiles/separatedChapters/",
+	"path_to_output_txt":"/home/paulojeunon/Desktop/TDP_NLP/books/power_electronics_converters_applications/output/txtFiles/",
+	"path_to_output_txt_chapters":"/home/paulojeunon/Desktop/TDP_NLP/books/power_electronics_converters_applications/output/txtFiles/separatedChapters/",
+    "path_to_output_xlsx":"/home/paulojeunon/Desktop/TDP_NLP/books/power_electronics_converters_applications/output/xlsxFiles/",
+    "path_to_output_xlsx_chapters":"/home/paulojeunon/Desktop/TDP_NLP/books/power_electronics_converters_applications/output/xlsxFiles/separatedChapters/",
+    "path_to_output_gdf":"/home/paulojeunon/Desktop/TDP_NLP/books/power_electronics_converters_applications/output/gdfFiles/",
+    "path_to_output_img":"/home/paulojeunon/Desktop/TDP_NLP/books/power_electronics_converters_applications/output/imgFiles/",
+    "path_to_output_img_chapters":"/home/paulojeunon/Desktop/TDP_NLP/books/power_electronics_converters_applications/output/imgFiles/separatedChapters/",
+    "department":"Electrical",
+    "number_of_chapters":-1
+  },
+
+  "materials_selection_in_mechanic_design": {
+    "path_to_input":"/home/paulojeunon/Desktop/TDP_NLP/books/materials_selection_in_mechanic_design/input/txtFiles/",
+	"path_to_input_chapters":"/home/paulojeunon/Desktop/TDP_NLP/books/materials_selection_in_mechanic_design/input/txtFiles/separatedChapters/",
+	"path_to_output_txt":"/home/paulojeunon/Desktop/TDP_NLP/books/materials_selection_in_mechanic_design/output/txtFiles/",
+	"path_to_output_txt_chapters":"/home/paulojeunon/Desktop/TDP_NLP/books/materials_selection_in_mechanic_design/output/txtFiles/separatedChapters/",
+    "path_to_output_xlsx":"/home/paulojeunon/Desktop/TDP_NLP/books/materials_selection_in_mechanic_design/output/xlsxFiles/",
+    "path_to_output_xlsx_chapters":"/home/paulojeunon/Desktop/TDP_NLP/books/materials_selection_in_mechanic_design/output/xlsxFiles/separatedChapters/",
+    "path_to_output_gdf":"/home/paulojeunon/Desktop/TDP_NLP/books/materials_selection_in_mechanic_design/output/gdfFiles/",
+    "path_to_output_img":"/home/paulojeunon/Desktop/TDP_NLP/books/materials_selection_in_mechanic_design/output/imgFiles/",
+    "path_to_output_img_chapters":"/home/paulojeunon/Desktop/TDP_NLP/books/materials_selection_in_mechanic_design/output/imgFiles/separatedChapters/",
+    "department":"Materials",
+    "number_of_chapters":-1
+  },
+
+  "elements_of_chemical_reaction": {
+    "path_to_input":"/home/paulojeunon/Desktop/TDP_NLP/books/elements_of_chemical_reaction/input/txtFiles/",
+	"path_to_input_chapters":"/home/paulojeunon/Desktop/TDP_NLP/books/elements_of_chemical_reaction/input/txtFiles/separatedChapters/",
+	"path_to_output_txt":"/home/paulojeunon/Desktop/TDP_NLP/books/elements_of_chemical_reaction/output/txtFiles/",
+	"path_to_output_txt_chapters":"/home/paulojeunon/Desktop/TDP_NLP/books/elements_of_chemical_reaction/output/txtFiles/separatedChapters/",
+    "path_to_output_xlsx":"/home/paulojeunon/Desktop/TDP_NLP/books/elements_of_chemical_reaction/output/xlsxFiles/",
+    "path_to_output_xlsx_chapters":"/home/paulojeunon/Desktop/TDP_NLP/books/elements_of_chemical_reaction/output/xlsxFiles/separatedChapters/",
+    "path_to_output_gdf":"/home/paulojeunon/Desktop/TDP_NLP/books/elements_of_chemical_reaction/output/gdfFiles/",
+    "path_to_output_img":"/home/paulojeunon/Desktop/TDP_NLP/books/elements_of_chemical_reaction/output/imgFiles/",
+    "path_to_output_img_chapters":"/home/paulojeunon/Desktop/TDP_NLP/books/elements_of_chemical_reaction/output/imgFiles/separatedChapters/",
+    "department":"Chemical",
+    "number_of_chapters":-1
+  },
+
+  "engineering_design": {
+    "path_to_input":"/home/paulojeunon/Desktop/TDP_NLP/books/engineering_design/input/txtFiles/",
+	"path_to_input_chapters":"/home/paulojeunon/Desktop/TDP_NLP/books/engineering_design/input/txtFiles/separatedChapters/",
+	"path_to_output_txt":"/home/paulojeunon/Desktop/TDP_NLP/books/engineering_design/output/txtFiles/",
+	"path_to_output_txt_chapters":"/home/paulojeunon/Desktop/TDP_NLP/books/engineering_design/output/txtFiles/separatedChapters/",
+    "path_to_output_xlsx":"/home/paulojeunon/Desktop/TDP_NLP/books/engineering_design/output/xlsxFiles/",
+    "path_to_output_xlsx_chapters":"/home/paulojeunon/Desktop/TDP_NLP/books/engineering_design/output/xlsxFiles/separatedChapters/",
+    "path_to_output_gdf":"/home/paulojeunon/Desktop/TDP_NLP/books/engineering_design/output/gdfFiles/",
+    "path_to_output_img":"/home/paulojeunon/Desktop/TDP_NLP/books/engineering_design/output/imgFiles/",
+    "path_to_output_img_chapters":"/home/paulojeunon/Desktop/TDP_NLP/books/engineering_design/output/imgFiles/separatedChapters/",
+    "department":"Mechanical2",
+    "number_of_chapters":-1
+  },
+
+  "all_books_combined": {
+    "path_to_input":"/home/paulojeunon/Desktop/TDP_NLP/books/all_books_combined/input/txtFiles/",
+	"path_to_input_chapters":"/home/paulojeunon/Desktop/TDP_NLP/books/all_books_combined/input/txtFiles/separatedChapters/",
+	"path_to_output_txt":"/home/paulojeunon/Desktop/TDP_NLP/books/all_books_combined/output/txtFiles/",
+	"path_to_output_txt_chapters":"/home/paulojeunon/Desktop/TDP_NLP/books/all_books_combined/output/txtFiles/separatedChapters/",
+    "path_to_output_xlsx":"/home/paulojeunon/Desktop/TDP_NLP/books/all_books_combined/output/xlsxFiles/",
+    "path_to_output_xlsx_chapters":"/home/paulojeunon/Desktop/TDP_NLP/books/all_books_combined/output/xlsxFiles/separatedChapters/",
+    "path_to_output_gdf":"/home/paulojeunon/Desktop/TDP_NLP/books/all_books_combined/output/gdfFiles/",
+    "path_to_output_img":"/home/paulojeunon/Desktop/TDP_NLP/books/all_books_combined/output/imgFiles/",
+    "path_to_output_img_chapters":"/home/paulojeunon/Desktop/TDP_NLP/books/all_books_combined/output/imgFiles/separatedChapters/",
+    "number_of_chapters":-1
   },
 
   "interview": {
@@ -21,6 +107,20 @@
     "path_to_output_txt_hypernym_path_meas":"/home/paulojeunon/Desktop/TDP_NLP/interview/output/interviewHypernym/txtFiles/hypernymPathMeasurements/",
     "path_to_output_txt_hypernym_other_meas":"/home/paulojeunon/Desktop/TDP_NLP/interview/output/interviewHypernym/txtFiles/otherGraphMeasurements/",
     "path_to_output_txt_hypernym_important_nodes":"/home/paulojeunon/Desktop/TDP_NLP/interview/output/interviewHypernym/txtFiles/mostImportantHypernymsNodes/",
-    "path_to_output_xlsx_hypernym":"/home/paulojeunon/Desktop/TDP_NLP/interview/output/interviewHypernym/xlsxFiles/"
+    "path_to_output_xlsx_hypernym":"/home/paulojeunon/Desktop/TDP_NLP/interview/output/interviewHypernym/xlsxFiles/",
+    "path_to_output_img_hypernym":"/home/paulojeunon/Desktop/TDP_NLP/interview/output/interviewHypernym/imgFiles/",
+    "path_to_output_img_hypernym_allnouns":"/home/paulojeunon/Desktop/TDP_NLP/interview/output/interviewHypernym/imgFiles/allnouns/",
+    "path_to_output_img_hypernym_stage1":"/home/paulojeunon/Desktop/TDP_NLP/interview/output/interviewHypernym/imgFiles/stage1/",
+    "path_to_output_img_hypernym_stage2":"/home/paulojeunon/Desktop/TDP_NLP/interview/output/interviewHypernym/imgFiles/stage2/",
+    "path_to_output_img_hypernym_stage3":"/home/paulojeunon/Desktop/TDP_NLP/interview/output/interviewHypernym/imgFiles/stage3/",
+    "path_to_output_img_hypernym_stage4":"/home/paulojeunon/Desktop/TDP_NLP/interview/output/interviewHypernym/imgFiles/stage4/",
+    "path_to_output_img_hypernym_stage5":"/home/paulojeunon/Desktop/TDP_NLP/interview/output/interviewHypernym/imgFiles/stage5/",
+    "path_to_output_img_hypernym_stage6":"/home/paulojeunon/Desktop/TDP_NLP/interview/output/interviewHypernym/imgFiles/stage6/",
+    "path_to_output_img_hypernym_knowledge":"/home/paulojeunon/Desktop/TDP_NLP/interview/output/interviewHypernym/imgFiles/knowledge/",
+    "path_to_output_img_hypernym_comprehension":"/home/paulojeunon/Desktop/TDP_NLP/interview/output/interviewHypernym/imgFiles/comprehension/",
+    "path_to_output_img_hypernym_application":"/home/paulojeunon/Desktop/TDP_NLP/interview/output/interviewHypernym/imgFiles/application/",
+    "path_to_output_img_hypernym_analysis":"/home/paulojeunon/Desktop/TDP_NLP/interview/output/interviewHypernym/imgFiles/analysis/",
+    "path_to_output_img_hypernym_synthesis":"/home/paulojeunon/Desktop/TDP_NLP/interview/output/interviewHypernym/imgFiles/synthesis/",
+    "path_to_output_img_hypernym_evaluation":"/home/paulojeunon/Desktop/TDP_NLP/interview/output/interviewHypernym/imgFiles/evaluation/"
   }
 }

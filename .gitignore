@@ -15,3 +15,4 @@ sigmakee
 /sumointerface/WordGraph/build/
 /sumointerface/WordGraph/dist/
 *.txt
+GoogleNews-vectors-negative300.bin

@@ -3,20 +3,16 @@ This file intends to be an utility box, containing functions to help with smalle
 """
 
 import projectFiles.constants as cts
-
-import xlsxwriter
-import pandas as pd
-from openpyxl import load_workbook
-from openpyxl.utils import coordinate_from_string, column_index_from_string
+from projectFiles.Utils import xlsxUtils
 
 import numpy as np
-import math
 import heapq
 
 import os
 
 import matplotlib.patches as mpatches
 from matplotlib import pyplot as plt
+import textwrap as tw
 
 import nltk
 from nltk.tag.stanford import CoreNLPPOSTagger
@@ -64,11 +60,9 @@ def tokenize_string(text_string, eliminateNonAlphaNumericalCharacters=False):
 
 
 def tag_tokens_using_stanford_corenlp(token_list, corenlp_server_address='http://localhost:9000'):
-    print("tag_tokens_using_stanford_corenlp started")
+    # print("tag_tokens_using_stanford_corenlp started")
 
     tagger = CoreNLPPOSTagger(url=corenlp_server_address)
-
-    print(len(token_list))
 
     # The piece of code below is exists to deal with a limitation of the Stanford's coreNLP Server that only
     # supports 100000 characters per server call. So this will break the text in a lot of smaller pieces and send
@@ -87,7 +81,7 @@ def tag_tokens_using_stanford_corenlp(token_list, corenlp_server_address='http:/
 
         tagged_text += tagger.tag(tokens_to_tag)
 
-    print("tag_tokens_using_stanford_corenlp ended")
+    # print("tag_tokens_using_stanford_corenlp ended")
 
     return tagged_text
 
@@ -196,349 +190,38 @@ def tokens_to_centralized_windows(tagged_text, window_size, enable_verb_filter):
     return content_dict
 
 
+def save_verb_frequency(verb_frequency_dict, path_to_output_txt, feature_name,encoding):
+    list_of_tuples = sort_dict(verb_frequency_dict)
+    save_list_of_tuples(list_of_tuples, path_to_output_txt, 'verb_frequency' + feature_name, encoding)
+
+
+def save_highest_elements_on_coocmatrix(cooc_matrix, path_to_output_txt, feature_name, encoding):
+    save_list_of_tuples(cooc_matrix.get_20_percent_of_highest_pairs(), path_to_output_txt,
+                              '20PerCentHighestPairs' + feature_name, encoding)
+
+
+def save_noun_frequency(noun_frequency_dict, path_to_output_txt, feature_name, encoding):
+    list_of_tuples = sort_dict(noun_frequency_dict)
+    save_list_of_tuples(list_of_tuples, path_to_output_txt, 'nouns_frequency' + feature_name, encoding)
+
+
+def calculate_generate_sim_matrix_gdf(cooc_matrix, path_dict, calculate_sim_matrix_method, min_edge_value):
+    inverted_noun_rows = invert_dictionary(cooc_matrix.noun_rows)
+    temp_noun_rows_list = [inverted_noun_rows[i] for i in range(len(inverted_noun_rows))]
+    content_dict = calculate_sim_matrix_method(temp_noun_rows_list, cts.all_semantic_similarity_methods)
+
+    cooc_matrix.noun_to_noun_sim_matrices = content_dict['noun_to_noun_sim_matrices']
+    unknown_words = content_dict['unknown_words']
+
+    save_noun_sim_matrix_in_gdf(cooc_matrix, unknown_words, cooc_matrix.noun_rows,
+                                      cts.all_semantic_similarity_methods + ['average_of_methods'], 'simGraph',
+                                      path_dict, True, min_edge_value)
+
+
 '''
 Below are functions that deal with the reading, opening and saving of xlsx archives
 '''
 
-def create_workbook(name):
-    #  Creates and return a Workbook with a chosen "name"
-    return xlsxwriter.Workbook(name)
-
-
-def get_new_worksheet(name, workbook):
-    #  Add a new worksheet to a "workbook" and return it (returns the worksheet)
-    return workbook.add_worksheet(name)
-
-
-def close_workbook(workbook):
-    #  Closes the workbook (mandatory by the end of its use)
-    workbook.close()
-
-
-def write_cooc_matrix(row_index_name_dict, column_index_name_dict, cooc_matrix, worksheet):
-    """
-    This function will print the matrix in a excel spreadsheet
-    :param row_index_name_dict: The dictionary that stores the name of the rows (nouns) to print them in the sheet
-    :param column_index_name_dict: The dictionary that stores the name of the columns (verbs) to print them in the sheet
-    :param cooc_matrix: The co-occurrence matrix that will be written to the arquive
-    :param worksheet: The worksheet that the matrix will be written to
-    :return: Nothing
-    """
-
-    row_len = len(row_index_name_dict)
-    column_len = len(column_index_name_dict)
-
-    for i in range(row_len):
-        worksheet.write(i+1, 0, row_index_name_dict[i])
-
-    for i in range(column_len):
-        worksheet.write(0, i+1, column_index_name_dict[i])
-
-    for i in range(row_len):
-        for j in range(column_len):
-            worksheet.write(i+1, j+1, cooc_matrix[i][j])
-
-
-def write_verb_filtered_arrays(nouns_from_verb_arrays, verb_filtered_arrays, ordered_verbs, worksheet, workbook):
-
-
-    xlsx_column = 0
-
-    format = workbook.add_format({'bg_color': 'green'})
-
-    for verb in ordered_verbs:
-
-        nouns = nouns_from_verb_arrays[verb]
-        nouns_lenght = len(nouns)
-
-        xlsx_row = 1
-
-        for noun in nouns:
-            worksheet.write(xlsx_row, xlsx_column, noun)
-            xlsx_row += 1
-
-        xlsx_row = 0
-        xlsx_column += 1
-        worksheet.write(xlsx_row, xlsx_column, verb)
-        xlsx_row = 1
-
-        values = verb_filtered_arrays[verb]
-
-        for value in values:
-            worksheet.write(xlsx_row, xlsx_column, value)
-            xlsx_row += 1
-
-        xlsx_row = 0
-        xlsx_column += 2
-
-        for i in range(nouns_lenght):
-            worksheet.write_blank(xlsx_row, xlsx_column, '', format)
-            xlsx_row += 1
-
-        xlsx_column += 2
-
-
-def get_column_names(rows, verb_columns):
-    counter = 0
-    for row in rows:
-        for cell in row:
-            value = cell.value
-            if value is not None:
-                verb_columns[value] = counter
-                counter += 1
-        break
-
-
-def complete_the_loading(rows, noun_rows, matrix):
-    counter = 0
-    i = 0
-    for row in rows:
-        row_jump = True
-        j = 0
-
-        for cell in row:
-            value = cell.value
-            if row_jump:
-                noun_rows[value] = counter
-                counter += 1
-                row_jump = False
-            else:
-                matrix[i][j] = value
-                j += 1
-
-        i += 1
-
-
-def read_all_stages(input_address, nouns_for_hypernyms_file_name, list_of_verbs_file_name):
-    content_dict = {}
-
-    wb = pd.ExcelFile(input_address + nouns_for_hypernyms_file_name)
-
-    wb2 = pd.ExcelFile(input_address + list_of_verbs_file_name)
-    sheet2 = wb2.parse('sheet2')
-
-    for i in range(1,7):
-        curr_sheet = wb.parse("stage " + str(i))
-        noun_list = curr_sheet['Active nouns'].values.tolist().copy()
-        department_list = curr_sheet['Department'].values.tolist().copy()
-        full_noun_and_verb_list = curr_sheet['Entities'].values.tolist().copy()
-        synset_list = curr_sheet['SUMO word ID'].values.tolist().copy()
-        final_noun_list = curr_sheet['Curated nouns'].values.tolist().copy()
-        nature_of_entities_list = curr_sheet['Nature of Entities (Basic)'].values.tolist().copy()
-
-        for l in range(len(noun_list)):
-            if isinstance(final_noun_list[l], str):
-                noun_list[l] = final_noun_list[l]
-
-        noun_list = [str(noun_list[i]).strip() for i in range(len(noun_list))]
-        department_list = [str(department_list[i]).strip() for i in range(len(department_list))]
-        full_noun_and_verb_list = \
-            [str(full_noun_and_verb_list[i]).strip() for i in range(len(full_noun_and_verb_list))]
-        nature_of_entities_list = [(str(noe).lower()).strip() for noe in nature_of_entities_list]
-
-        j = 0
-        loop_size = len(noun_list)
-
-        while j < loop_size:
-            if isinstance(synset_list[j], float):
-                if math.isnan(synset_list[j]):
-                    synset_list[j] = 0.0
-
-            if isinstance(noun_list[j], str) == False or noun_list[j] == 'nan':
-                del noun_list[j:]
-                del department_list[j:]
-                del full_noun_and_verb_list[j:]
-                del synset_list[j:]
-                del nature_of_entities_list[j:]
-                break
-            j += 1
-
-        synset_list = [int(k) for k in synset_list]
-
-        # print('STAGE ' + str(i))
-        # print('noun_list_length = ' + str(len(noun_list)))
-        # print(noun_list)
-        # print('')
-        #
-        # print('department_list_length = ' + str(len(department_list)))
-        # print(department_list)
-        # print('')
-        #
-        # print('full_noun_and_verb_list_length = ' + str(len(full_noun_and_verb_list)))
-        # print(full_noun_and_verb_list)
-        # print('')
-        #
-        # print('synset_list_length = ' + str(len(synset_list)))
-        # print(synset_list)
-        # print('\n\n')
-
-        find_associated_verbs_in_xlsx_sheet(full_noun_and_verb_list, sheet2)
-
-        # for t in full_noun_and_verb_list:
-        #     print(t)
-
-        content_dict['stage' + str(i)] = {'noun_list': noun_list, 'department_list': department_list,
-                                          'synset_list': synset_list,
-                                          'full_noun_and_verb_list': full_noun_and_verb_list,
-                                          'nature_of_entities_list': nature_of_entities_list}
-
-    return content_dict
-
-
-def read_all_nouns(input_address, nouns_for_hypernyms_file_name, list_of_verbs_file_name):
-    wb = pd.ExcelFile(input_address + nouns_for_hypernyms_file_name)
-    sheet = wb.parse("all nouns")
-    noun_list = sheet['Active nouns'].values.tolist().copy()
-    department_list = sheet['Department'].values.tolist().copy()
-    full_noun_and_verb_list = sheet['Entities'].values.tolist().copy()
-    synset_list = sheet['SUMO word ID'].values.tolist().copy()
-    final_noun_list = sheet['Final noun'].values.tolist().copy()
-    nature_of_entities_list = find_nature_of_entities(full_noun_and_verb_list, wb)
-
-    noun_list = [str(noun_list[i]).strip() for i in range(len(noun_list))]
-    department_list = [str(department_list[i]).strip() for i in range(len(department_list))]
-    full_noun_and_verb_list = \
-        [str(full_noun_and_verb_list[i]).strip() for i in range(len(full_noun_and_verb_list))]
-    nature_of_entities_list = [str(nature_of_entities_list[i]).strip() for i in range(len(nature_of_entities_list))]
-
-    wb2 = pd.ExcelFile(input_address + list_of_verbs_file_name)
-    sheet3 = wb2.parse('sheet2')
-
-    find_associated_verbs_in_xlsx_sheet(full_noun_and_verb_list, sheet3)
-
-    lemmatizer = nltk.stem.WordNetLemmatizer()
-
-    for i in range(len(noun_list)):
-        if isinstance(final_noun_list[i], str):
-            noun_list[i] = final_noun_list[i]
-
-        noun_list[i] = noun_list[i].lower()
-        noun_list[i] = lemmatizer.lemmatize(noun_list[i])
-
-    i = 0
-    whileSize = len(noun_list)
-    while i < whileSize:
-        noun_list[i] = noun_list[i].replace(" ", "")
-
-        if isinstance(synset_list[i], float):
-            if math.isnan(synset_list[i]):
-                synset_list[i] = 0.0
-
-        i += 1
-
-    synset_list = [int(k) for k in synset_list]
-
-    content_dict = {"full_noun_and_verb_list": full_noun_and_verb_list, "noun_list": noun_list,
-                    "department_list": department_list, "synset_list": synset_list,
-                    'nature_of_entities_list': nature_of_entities_list}
-
-    return content_dict
-
-
-def find_associated_verbs_in_xlsx_sheet(full_noun_and_verb_list, sheet):
-    temp_noun_list = []
-    temp_verb_list = []
-
-    for i in range(1, 13):
-        temp_noun_list += sheet['Nouns' + str(i)].values.tolist().copy()
-        temp_verb_list += sheet['Verbs' + str(i)].values.tolist().copy()
-
-    temp_noun_list = [str(temp_noun_list[i]).strip() for i in range(len(temp_noun_list))]
-    temp_verb_list = [str(temp_verb_list[i]).strip() for i in range(len(temp_verb_list))]
-
-    for j in range(len(full_noun_and_verb_list)):
-        for k in range(len(temp_noun_list)):
-            if full_noun_and_verb_list[j] == temp_noun_list[k]:
-                full_noun_and_verb_list[j] = (full_noun_and_verb_list[j], '[' + temp_verb_list[k] + ']')
-                break
-
-    # for i in range(len(full_noun_and_verb_list)):
-    #     print(full_noun_and_verb_list[i])
-
-
-def find_nature_of_entities(full_noun_list, wb):
-    nature_of_entities_list = []
-    list_of_entities_lists = []
-    list_of_nature_of_entities_list = []
-
-    for i in range(1,7):
-        curr_sheet = wb.parse("stage " + str(i))
-        list_of_entities_lists.append(curr_sheet['Entities'].values.tolist().copy())
-        list_of_nature_of_entities_list.append(curr_sheet['Nature of Entities (Basic)'].values.tolist().copy())
-
-    for entity in full_noun_list:
-
-        for i in range(6):
-            should_break = False
-
-            for j in range(len(list_of_entities_lists[i])):
-                if isinstance(list_of_nature_of_entities_list[i][j], float):
-                    break
-
-                if entity.strip() == list_of_entities_lists[i][j].strip():
-                    nature_of_entities_list.append(list_of_nature_of_entities_list[i][j].lower())
-                    should_break = True
-                    break
-
-            if should_break:
-                break
-
-    return nature_of_entities_list
-
-
-
-def load_from_wb(workbook_name):
-    """
-    Function used to load the matrix data from a xlsx archive. It is faster then generating it from text
-    :param workbook_name: path and name of the xlsx file to use to extract information
-    :return: Returns a dictionary containing the information to create a 'CoocMatrix' object
-    """
-    # Load workbook
-    wb = load_workbook(filename=workbook_name, read_only=True)
-    print('wb loaded')
-
-    # Load worksheets
-    ws = wb['cooc_matrix_full']
-    ws_soc_pmi = wb['soc_pmi_matrix']
-
-    # Calculate the matrix dimensions and transform the excel's coordinates to matrix coordinates (to only integers)
-    rows = ws.rows
-    matrix_dim = ws.calculate_dimension().split(':')
-    rows_count = coordinate_from_string(matrix_dim[1])[1] - 1
-    column_count = column_index_from_string(coordinate_from_string(matrix_dim[1])[0]) - 1
-
-    matrix = np.empty((rows_count, column_count))
-
-    print('matrix allocated')
-
-    noun_rows = {}
-    verb_columns = {}
-
-    get_column_names(rows, verb_columns)
-    print('get_column_names completed')
-    complete_the_loading(rows, noun_rows, matrix)
-    print('complete_the_loading completed')
-
-    rows = ws_soc_pmi.rows
-    matrix_dim = ws_soc_pmi.calculate_dimension().split(':')
-    rows_count = coordinate_from_string(matrix_dim[1])[1] - 1
-    column_count = column_index_from_string(coordinate_from_string(matrix_dim[1])[0]) - 1
-
-    soc_pmi_matrix = np.empty((rows_count, column_count))
-
-    soc_pmi_noun_rows = {}
-    soc_pmi_verb_columns = {}
-
-    get_column_names(rows, soc_pmi_verb_columns)
-    print('get_column_names completed 2')
-    complete_the_loading(rows, soc_pmi_noun_rows, soc_pmi_matrix)
-    print('complete_the_loading completed 2')
-
-    content = {'matrix': matrix, 'noun_rows': noun_rows, 'verb_columns': verb_columns,
-               'soc_pmi_matrix': soc_pmi_matrix, 'soc_pmi_noun_rows': soc_pmi_noun_rows,
-               'soc_pmi_verb_columns': soc_pmi_verb_columns}
-
-    return content
 
 
 '''
@@ -577,6 +260,55 @@ def plot_vectors(vec1_coord, vec2_coord, vec1_name, vec2_name, verb1_name, verb2
     plt.show(False)
 
 
+def create_bar_plot(file_path, file_name, object_list, y_value_list, title, y_label, text_below='', figsize=(10, 3),
+                    alpha=0.7, align='center', width=0.5):
+
+    y_pos = np.arange(len(object_list))
+
+    plt.figure(figsize=figsize)
+
+    plt.bar(y_pos, y_value_list, align=align, alpha=alpha, width=width)
+    # line_plot = plt.twinx()
+    plt.plot(y_pos, y_value_list, 'bo', y_pos, y_value_list, 'k')
+    plt.grid(b=False)
+
+    fig_txt = tw.fill(tw.dedent(text_below.rstrip()))
+    plt.figtext(0.5, -0.2, fig_txt, horizontalalignment='center', fontsize=10, multialignment='left',
+                bbox=dict(boxstyle="round", facecolor='#D8D8D8', ec="0.5", pad=0.5, alpha=1), fontweight='bold')
+
+    plt.xticks(y_pos, object_list)
+    plt.ylabel(y_label)
+    plt.title(title)
+
+    plt.savefig(file_path + file_name, bbox_inches='tight')
+    plt.close()
+
+
+def create_cognitive_level_distribution_graph(path_to_img_folder, name_of_img, verb_frequency_dict):
+
+    cognitive_level_frequency = {}
+    for (verb,frequency) in verb_frequency_dict.items():
+        verb_cognitive_level = get_verb_cognitive_level(verb)
+        if verb_cognitive_level is None:
+            continue
+
+        if verb_cognitive_level not in cognitive_level_frequency:
+            cognitive_level_frequency[verb_cognitive_level] = frequency
+        else:
+            cognitive_level_frequency[verb_cognitive_level] += frequency
+
+    object_list = cts.names_of_cognitive_levels
+    y_values = sort_cognitive_levels_associated_values(cognitive_level_frequency)
+
+    create_bar_plot(path_to_img_folder, name_of_img, object_list, y_values, 'Verbs in each cognitive level',
+                    'frequency of verbs')
+
+    txt_out = open(path_to_img_folder + 'text_distribution', 'w')
+    for i in range(len(y_values)):
+        txt_out.write(object_list[i] + ' - ' + str(y_values[i]) + '\n')
+    txt_out.close()
+
+
 '''
 Below are functions related to saving in text archives
 '''
@@ -599,14 +331,15 @@ def save_tagged_words(tagged_text, path_dict,
     f2.close()
 
 
-def save_list_of_tuples(list_of_tuples, folder_path, source_name, purpose_name, encoding='utf8'):
+def save_list_of_tuples(list_of_tuples, folder_path, source_name, encoding='utf8'):
 
-    output_file = open(folder_path + source_name + '_' + purpose_name + '.txt', 'w',
+    output_file = open(folder_path + source_name + '.txt', 'w',
                        encoding=encoding)
     for tuple in list_of_tuples:
+        temp_string = ''
         for value in tuple:
-            output_file.write(str(value) + ' - ')
-        output_file.write('\n')
+            temp_string += '-' + str(value)
+        output_file.write(temp_string[1:] +  '\n')
 
 
 '''
@@ -614,11 +347,14 @@ Below are functions related to create gdf archives
 '''
 
 
-def save_noun_sim_matrix_in_gdf(cooc_matrix, noun_dict, methods, book_name, path_dict):
+def save_noun_sim_matrix_in_gdf(cooc_matrix, unknown_words, noun_dict, methods, book_name, path_dict,
+                                eliminate_unknown_words=True, edge_min_value=0.0):
+
+    edge_min_value = limit_value(edge_min_value, 0.0, 1.0)
 
     output_files = []
     for method in methods:
-        output_files.append(open(path_dict['path_to_output_book_gdf'] + book_name + '_' + method + '.gdf', 'w'))
+        output_files.append(open(path_dict['path_to_output_gdf'] + book_name + '_' + method + '.gdf', 'w'))
 
     for output_file_index in range(len(output_files)):
         # print('Creating the graph archives ... current progress = ' + str(output_file_index) + '/' +
@@ -631,7 +367,35 @@ def save_noun_sim_matrix_in_gdf(cooc_matrix, noun_dict, methods, book_name, path
 
         output_files[output_file_index].write('\n')
 
+        curr_matrix = cooc_matrix.noun_to_noun_sim_matrices[methods[output_file_index]]
+        inverted_noun_dict = invert_dictionary(noun_dict)
+
+        i = 0
+        check_again = []
+        while i < curr_matrix.shape[0] - 1:
+            j = i + 1
+            has_above_min = False
+            while j < curr_matrix.shape[0]:
+                if curr_matrix[i][j] > edge_min_value:
+                    check_again.append(inverted_noun_dict[j])
+                    has_above_min = True
+                    break
+                j += 1
+
+            if has_above_min == False:
+                unknown_words[inverted_noun_dict[i]] = False
+
+            i += 1
+
+        for noun in check_again:
+            if noun in unknown_words:
+                print(noun)
+                del unknown_words[noun]
+
         for noun_key in noun_dict:
+            if eliminate_unknown_words and noun_key in unknown_words:
+                continue
+
             output_files[output_file_index].write(noun_key)
             still_have_verbs_to_fill = 16
             for verb_key, verb_column in cooc_matrix.verb_columns.items():
@@ -647,21 +411,28 @@ def save_noun_sim_matrix_in_gdf(cooc_matrix, noun_dict, methods, book_name, path
 
         output_files[output_file_index].write('edgedef>node1 VARCHAR, node2 VARCHAR, weight FLOAT\n')
 
-        inverted_noun_dict = invert_dictionary(noun_dict)
-
-        curr_matrix = cooc_matrix.noun_to_noun_sim_matrices[methods[output_file_index]]
-
         i = 0
         while i < curr_matrix.shape[0] - 1:
 
+            if eliminate_unknown_words and inverted_noun_dict[i] in unknown_words:
+                i += 1
+                continue
+
             j = i + 1
             while j < curr_matrix.shape[0]:
+
+                if eliminate_unknown_words and inverted_noun_dict[j] in unknown_words:
+                    j += 1
+                    continue
+
+                if edge_min_value > curr_matrix[i][j]:
+                    j += 1
+                    continue
 
                 output_files[output_file_index].write(inverted_noun_dict[i] + ',' + inverted_noun_dict[j] + ',' +
                                                       '{0:.2f}'.format(curr_matrix[i][j]) + '\n')
                 j += 1
 
-            # print('archive: ' + str(i))
             i += 1
 
 
@@ -717,7 +488,80 @@ def save_noun_sim_matrix_in_gdf_2(noun_to_noun_sim_matrices, noun_list, departme
                                                       '{0:.2f}'.format(curr_matrix[i][j]) + '\n')
                 j += 1
 
-            # print('archive: ' + str(i))
+            i += 1
+
+
+def save_noun_sim_matrix_in_gdf3(sim_matrices, unknown_words, noun_dict, noun_list, methods, book_name, path_dict,
+                                 eliminate_unknown_words=True, edge_min_value=0.0):
+
+    edge_min_value = limit_value(edge_min_value, 0.0, 1.0)
+
+    output_files = []
+    for method in methods:
+        output_files.append(open('/home/paulojeunon/Documents/' + book_name + '_' + method + '.gdf', 'w'))
+
+    for output_file_index in range(len(output_files)):
+
+        output_files[output_file_index].write('nodedef>name VARCHAR, color VARCHAR')
+
+        for i in range(17):
+            output_files[output_file_index].write(', verb' + str(i) + ' VARCHAR')
+
+        output_files[output_file_index].write('\n')
+
+        curr_matrix = sim_matrices[methods[output_file_index]]
+
+        for i in range(len(noun_list)):
+            has_above_min = False
+            for j in range(len(noun_list)):
+                if curr_matrix[i][j] > edge_min_value:
+                    has_above_min = True
+                    break
+
+            if has_above_min == False:
+                unknown_words[noun_list[i]] = False
+
+        for noun_key in noun_list:
+            if eliminate_unknown_words and noun_key in unknown_words:
+                continue
+
+            output_files[output_file_index].write(noun_key)
+            output_files[output_file_index].write(', ' + noun_dict[noun_key]['my_color'])
+
+            for verb in noun_dict[noun_key].keys():
+                if verb.startswith('my_c'):
+                    continue
+                output_files[output_file_index].write(', ' + verb)
+
+            for i in range(17 - len(noun_dict[noun_key])):
+                output_files[output_file_index].write(', ')
+
+            output_files[output_file_index].write('\n')
+
+        output_files[output_file_index].write('edgedef>node1 VARCHAR, node2 VARCHAR, weight FLOAT\n')
+
+        i = 0
+        while i < curr_matrix.shape[0] - 1:
+
+            if eliminate_unknown_words and noun_list[i] in unknown_words:
+                i += 1
+                continue
+
+            j = i + 1
+            while j < curr_matrix.shape[0]:
+
+                if eliminate_unknown_words and noun_list[j] in unknown_words:
+                    j += 1
+                    continue
+
+                if edge_min_value > curr_matrix[i][j]:
+                    j += 1
+                    continue
+
+                output_files[output_file_index].write(noun_list[i] + ',' + noun_list[j] + ',' +
+                                                      '{0:.2f}'.format(curr_matrix[i][j]) + '\n')
+                j += 1
+
             i += 1
 
 
@@ -730,11 +574,17 @@ def invert_dictionary(dictionary):
     return dict(zip(dictionary.values(), dictionary.keys()))
 
 
-def limit_value(value, min_value, max_value):
+def limit_value(value, min_value, max_value, is_jcn=False):
     if value > max_value:
         value = max_value
     elif value < min_value:
-        value = min_value
+        if is_jcn:
+            if value == 1e-300:
+                value = 1
+            else:
+                value = min_value
+        else:
+            value = min_value
 
     return value
 
@@ -774,6 +624,32 @@ def sort_and_match(list_of_values, list_to_be_matched):
         list_of_tuples.append((list_to_be_matched[index], list_of_values[index]))
 
     return list_of_tuples
+
+
+def get_verb_cognitive_level(verb, with_verbs_at_end=True):
+    for level, verbs in cts.cognitive_levels.items():
+        if verb in verbs:
+            if with_verbs_at_end:
+                return level
+            else:
+                return level[:-6]
+
+
+def get_book_names_in_json(get_all_books_combined):
+    book_name_list = []
+
+    for name in cts.data.keys():
+        if name != 'interview' and (get_all_books_combined or name != 'all_books_combined'):
+            book_name_list.append(name)
+
+    return book_name_list
+
+
+def sort_cognitive_levels_associated_values(cognitive_levels_dict, extra_name='_verbs'):
+    return [cognitive_levels_dict['knowledge' + extra_name], cognitive_levels_dict['comprehension' + extra_name],
+            cognitive_levels_dict['application' + extra_name], cognitive_levels_dict['analysis' + extra_name],
+            cognitive_levels_dict['synthesis' + extra_name], cognitive_levels_dict['evaluation' + extra_name]]
+
 
 '''
 Below are Java interface functions
@@ -828,5 +704,6 @@ Below here are some pre-steps that have to be made
 def setup_environment():
     for dict in cts.data.values():
         for value in dict.values():
-            if isinstance(value, str):
+            if isinstance(value, str) and value != 'department':
+
                 create_new_directory(value)

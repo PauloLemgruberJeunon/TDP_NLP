@@ -26,6 +26,8 @@ class CoocMatrix:
         self.noun_rows = {}
         self.wordnet_nouns = {}
         self.noun_rows_size = 0
+        self.noun_freq = {}
+
 
         #  Dictionary have a verb for key and a column index for value
         self.verb_columns = {}
@@ -137,6 +139,11 @@ class CoocMatrix:
 
                     if enable_lemmatization:
                         word = lemmatizer.lemmatize(word)
+
+                    if word not in self.noun_freq:
+                        self.noun_freq[word] = 1
+                    else:
+                        self.noun_freq[word] += 1
 
                     window_nouns.append(word)
                     if word not in self.noun_rows:
@@ -250,7 +257,7 @@ class CoocMatrix:
     # def filter_coocmatrix(self):
     #     """
     #     Finds the 30% highest occurring elements from the matrix, deletes the columns and rows that do not contain
-    #     at least one of this element. Rebuild the matrix storing on the variable "filtered matrix"
+    #     at least one of these elements. Rebuild the matrix storing on the variable "filtered matrix"
     #
     #     Returns
     #     -------
@@ -324,7 +331,7 @@ class CoocMatrix:
     #                 l += 1
     #         k += 1
 
-    def cosine_vector_sim(self, noun1, noun2):
+    def cosine_row_sim(self, noun1, noun2):
         """
         This function calculates the cosine similarity between two word vectors
         :param noun1: The name of a noun that belongs to the co-occurrence matrix to be compared
@@ -340,6 +347,24 @@ class CoocMatrix:
         row2 = curr_matrix[row_noun2]
 
         return 1 - cosine(row1, row2)
+
+    def cosine_column_sim(self, verb1, verb2, verb_prefix=''):
+
+        verb1 = verb_prefix + verb1
+        verb2 = verb_prefix + verb2
+
+        column_verb1 = self.verb_columns[verb1]
+        column_verb2 = self.verb_columns[verb2]
+
+
+        column1 = self.matrix[:, column_verb1]
+        column2 = self.matrix[:, column_verb2]
+
+        if verb1 == verb2:
+            print(len(column1))
+
+
+        return 1 - cosine(column1, column2)
 
     def plot_two_word_vectors(self, noun1_name, noun2_name, verb1_name, verb2_name):
         """
@@ -480,7 +505,7 @@ class CoocMatrix:
             j = i + 1
 
             while j < noun_dict_size:
-                cosine_sim_value = self.cosine_vector_sim(noun_dict_keys[i], noun_dict_keys[j])
+                cosine_sim_value = self.cosine_row_sim(noun_dict_keys[i], noun_dict_keys[j])
                 highest_sim_nouns.append((noun_dict_keys[i], noun_dict_keys[j], cosine_sim_value))
                 only_value_array[counter] = cosine_sim_value
                 counter += 1
@@ -547,7 +572,7 @@ class CoocMatrix:
                 self.noun_to_noun_sim_matrices[1][i][j] = value
 
                 value = w1.jcn_similarity(w2, brown_ic)
-                value = utils.limit_value(value, 0.01, 1.0)
+                value = utils.limit_value(value, 0.01, 1.0, True)
                 self.noun_to_noun_sim_matrices[2][i][j] = value
 
 
@@ -652,11 +677,49 @@ def save_noun_similarity_array(file_name, path_dict, encoding, noun_sim_array, i
     output_file.close()
 
 
+def calculate_sim_matrix_from_dif_lists(word_list_row, word_list_column):
+    i_size = len(word_list_row) - 1
+    j_size = len(word_list_column)
+
+    unknown_words = {}
+
+    avg_matrix = np.add(np.zeros((len(word_list_row), len(word_list_column)), dtype=float),
+                                                             0.001)
+
+    brown_ic = wordnet_ic.ic('ic-brown.dat')
+
+    i = 0
+    while i < i_size:
+        w1 = wordnet.synset(word_list_row[i])
+        j = i + 1
+        while j < j_size:
+            w2 = wordnet.synsets(word_list_column[j], 'v')
+            if not w2:
+                j += 1
+                unknown_words[word_list_column[j]] = 1
+                continue
+            w2 = w2[0]
+
+            value = 0
+            value += utils.limit_value(w1.wup_similarity(w2), 0.001, 1.0)
+            value += utils.limit_value(w1.jcn_similarity(w2, brown_ic), 0.001, 1.0, True)
+            value += utils.limit_value(w1.lin_similarity(w2, brown_ic), 0.001, 1.0)
+            value += utils.limit_value(w1.lch_similarity(w2) / 3.258096538021482, 0.001, 1.0)
+            value /= 4
+
+            avg_matrix[i][j] = value
+            j += 1
+        i+= 1
+
+    return unknown_words, avg_matrix
+
 def calculate_sim_matrix_from_list(word_list, methods_list, word_pos='n', full_synsets=False, all_matrix=False):
 
     print('calculate_sim_matrix_from_list started')
 
+    content_dict = {}
     noun_to_noun_sim_matrices = {}
+    unknown_words = {}
 
     word_list_size = len(word_list)
     for method in methods_list:
@@ -688,6 +751,7 @@ def calculate_sim_matrix_from_list(word_list, methods_list, word_pos='n', full_s
 
             if not w1:
                 print('Not able to find this noun: ' + word_list[i])
+                unknown_words[word_list[i]] = False
                 i += 1
                 continue
 
@@ -713,14 +777,10 @@ def calculate_sim_matrix_from_list(word_list, methods_list, word_pos='n', full_s
 
             if 'jcn' in noun_to_noun_sim_matrices:
                 value = w1.jcn_similarity(w2, brown_ic)
-                value = utils.limit_value(value, 0.001, 1.0)
+                value = utils.limit_value(value, 0.001, 1.0, True)
                 noun_to_noun_sim_matrices['jcn'][i][j] = value
 
             if 'lin' in noun_to_noun_sim_matrices:
-                # print('\nlin:')
-                # print(w1)
-                # print(w2)
-                # print('')
                 value = w1.lin_similarity(w2, brown_ic)
                 value = utils.limit_value(value, 0.001, 1.0)
                 noun_to_noun_sim_matrices['lin'][i][j] = value
@@ -751,4 +811,7 @@ def calculate_sim_matrix_from_list(word_list, methods_list, word_pos='n', full_s
 
     print('calculate_sim_matrix_from_list ended')
 
-    return noun_to_noun_sim_matrices
+    content_dict['noun_to_noun_sim_matrices'] = noun_to_noun_sim_matrices
+    content_dict['unknown_words'] = unknown_words
+
+    return content_dict

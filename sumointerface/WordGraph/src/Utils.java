@@ -200,9 +200,10 @@ public class Utils {
                                                     WordNode root,
                                                     HashMap<String, WordNode> graph) {
 
-        HashMap<String, ArrayList<String>> nodesRelatedToList = new HashMap<>();
+        HashMap<String, ArrayList<String>> nodesBelowRelatedToList = new HashMap<>();
+        HashMap<String, ArrayList<String>> nodesUpRelatedToList = new HashMap<>();
         HashMap<String, String> nodeLevels = new HashMap<>();
-        getRelatedVerbsForNodes(nodesRelatedToList, nodeLevels, root, 0);
+        getRelatedVerbsForNodes(nodesBelowRelatedToList, nodesUpRelatedToList, nodeLevels, root, 0);
 
         // Create a Workbook
         Workbook workbook = new XSSFWorkbook();
@@ -223,30 +224,51 @@ public class Utils {
         separatorCellStyle.setFillForegroundColor(IndexedColors.GREEN.getIndex());
         separatorCellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
 
-        ArrayList<String> nouns = new ArrayList<>();
-        ArrayList<String> verbs = new ArrayList<>();
+        ArrayList<String> nounsBelow = new ArrayList<>();
+        ArrayList<String> verbsBelow = new ArrayList<>();
+        
+        ArrayList<String> nounsUp = new ArrayList<>();
 
         int rowTracker = -1;
 
-        for(String wnUniqueCode : nodesRelatedToList.keySet()) {
-            ArrayList<String> verbNounPairs = nodesRelatedToList.get(wnUniqueCode);
+        for(String wnUniqueCode : nodesBelowRelatedToList.keySet()) {
+            ArrayList<String> verbNounPairs = nodesBelowRelatedToList.get(wnUniqueCode);
             String currHypernymName = graph.get(wnUniqueCode).getFullWord();
             String currHypernymVerb = graph.get(wnUniqueCode).getVerb();
 
             for(String tempWNUniqueCode : verbNounPairs) {
                 WordNode tempWN = graph.get(tempWNUniqueCode);
-                if(tempWN.getVerb().equals("-")) {
-                    continue;
+                //if(tempWN.getVerb().equals("-")) {
+                //    continue;
+                //}
+                nounsBelow.add(tempWN.getFullWord());
+                verbsBelow.add(tempWN.getVerb());
+            }
+            
+            int numberOfInterviewPairs = 0;
+            for(String verb : verbsBelow) {
+                if(verb.equals("-") == false) {
+                    numberOfInterviewPairs++;
                 }
-                nouns.add(tempWN.getFullWord());
-                verbs.add(tempWN.getVerb());
             }
 
-            if(nouns.size() < 2) {
-                nouns.clear();
-                verbs.clear();
+            if(numberOfInterviewPairs < 2) {
+                nounsBelow.clear();
+                verbsBelow.clear();
+                nounsUp.clear();
                 continue;
             }
+            
+            ArrayList<String> verbNounPairsUp = nodesUpRelatedToList.get(wnUniqueCode);
+            if(verbNounPairsUp != null) {
+                for(String uc : verbNounPairsUp) {
+                    WordNode tempWN = graph.get(uc);
+                    nounsUp.add(tempWN.getFullWord());
+                }
+            } else {
+                nounsUp.add(null);
+            }
+             
 
             rowTracker += 1;
             Row row = sheet.createRow(rowTracker);
@@ -269,7 +291,7 @@ public class Utils {
             header.setCellValue("Qty verb_noun:");
             header.setCellStyle(headerCellStyle);
             Cell qtyOfNounVerb = row.createCell(1);
-            qtyOfNounVerb.setCellValue(Integer.toString(nouns.size()));
+            qtyOfNounVerb.setCellValue(Integer.toString(numberOfInterviewPairs));
             qtyOfNounVerb.setCellStyle(headerCellStyle);
             
             rowTracker += 1;
@@ -277,8 +299,8 @@ public class Utils {
             header = row.createCell(0);
             header.setCellValue("Verbs Related:");
             header.setCellStyle(headerCellStyle);
-            for(int i = 0; i < verbs.size(); i++) {
-                row.createCell(i+1).setCellValue(verbs.get(i));
+            for(int i = 0; i < verbsBelow.size(); i++) {
+                row.createCell(i+1).setCellValue(verbsBelow.get(i));
             }
 
             rowTracker += 1;
@@ -286,9 +308,21 @@ public class Utils {
             header = row.createCell(0);
             header.setCellValue("Nouns Related:");
             header.setCellStyle(headerCellStyle);
-            for(int i = 0; i < nouns.size(); i++) {
-                row.createCell(i+1).setCellValue(nouns.get(i));
+            for(int i = 0; i < nounsBelow.size(); i++) {
+                row.createCell(i+1).setCellValue(nounsBelow.get(i));
             }
+            
+            rowTracker += 1;
+            row = sheet.createRow(rowTracker);
+            header = row.createCell(0);
+            header.setCellValue("Father Hypernyms:");
+            header.setCellStyle(headerCellStyle);
+            if(nounsUp.get(0) != null) {
+                for(int i = 0; i < nounsUp.size(); i++) {
+                    row.createCell(i+1).setCellValue(nounsUp.get(i));
+                }
+            } 
+            
 
             rowTracker += 2;
             row = sheet.createRow(rowTracker);
@@ -301,8 +335,9 @@ public class Utils {
             
             rowTracker += 1;
 
-            nouns.clear();
-            verbs.clear();
+            nounsBelow.clear();
+            verbsBelow.clear();
+            nounsUp.clear();
         }
 
         try{
@@ -323,22 +358,33 @@ public class Utils {
         }
     }
 
-    private static void getRelatedVerbsForNodes(HashMap<String, ArrayList<String>> nodesRelatedToList,
-                                                    HashMap<String,String> nodeLevels, WordNode root, int depth) {
+    private static void getRelatedVerbsForNodes(HashMap<String, ArrayList<String>> nodesBelowRelatedToList,
+                                                HashMap<String, ArrayList<String>> nodesUpRelatedToList,
+                                                HashMap<String,String> nodeLevels, WordNode root, int depth) {
 
         if(root.getSonNodes().isEmpty()) {
             return;
         }
+        
+        WordNode myHypernym = root.getMyHypernym();
+        if(myHypernym != null) {
+            nodesUpRelatedToList.put(root.getUniqueCode(), new ArrayList<>());
+            nodesUpRelatedToList.get(root.getUniqueCode()).add(myHypernym.getUniqueCode());
+            
+            if(nodesUpRelatedToList.containsKey(myHypernym.getUniqueCode())) {
+                nodesUpRelatedToList.get(root.getUniqueCode()).addAll(nodesUpRelatedToList.get(myHypernym.getUniqueCode()));
+            }
+        }
 
-        nodesRelatedToList.put(root.getUniqueCode(), new ArrayList<>());
-        ArrayList<String> relatedNodesList = nodesRelatedToList.get(root.getUniqueCode());
+        nodesBelowRelatedToList.put(root.getUniqueCode(), new ArrayList<>());
+        ArrayList<String> relatedNodesList = nodesBelowRelatedToList.get(root.getUniqueCode());
         nodeLevels.put(root.getUniqueCode(), Integer.toString(depth));
 
         for(WordNode sonWN : root.getSonNodes()) {
             relatedNodesList.add(sonWN.getUniqueCode());
-            getRelatedVerbsForNodes(nodesRelatedToList, nodeLevels, sonWN, depth+1);
+            getRelatedVerbsForNodes(nodesBelowRelatedToList, nodesUpRelatedToList, nodeLevels, sonWN, depth+1);
 
-            ArrayList<String> sonRelatedList = nodesRelatedToList.get(sonWN.getUniqueCode());
+            ArrayList<String> sonRelatedList = nodesBelowRelatedToList.get(sonWN.getUniqueCode());
             if(sonRelatedList != null) {
                 for(String currWNRelation : sonRelatedList) {
                     relatedNodesList.add(currWNRelation);

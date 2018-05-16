@@ -45,7 +45,7 @@ class MainGUI(Tk):
 
         self.frames = {}
 
-        for myFrame in (ChoiceFrame, LoadTxt, LoadXlsx, LoadingScreen, VectorDrawGui):
+        for myFrame in (ChoiceFrame, LoadTxt, LoadXlsx, LoadingScreen, InterviewOptions):
             frame_name = myFrame.__name__
             frame = myFrame(parent=self.container, controller=self)
             self.frames[frame_name] = frame
@@ -78,7 +78,7 @@ class MainGUI(Tk):
         my_thread.start()
         my_thread.join()
 
-        self.frames['VectorDrawGui'].cooc_matrix_vector_plotter = my_thread.get_cooc_matrix()
+        # self.frames['VectorDrawGui'].cooc_matrix_vector_plotter = my_thread.get_cooc_matrix()
 
         if analyse_chapters:
             my_thread = CoocMatrixThread(main_func.load_from_chapters, path_dict, encoding_type_value, save_in_xlsx,
@@ -87,7 +87,7 @@ class MainGUI(Tk):
             my_thread.start()
             my_thread.join()
 
-        self.show_frame('LoadingScreen', 'VectorDrawGui')
+        self.show_frame('LoadingScreen', 'ChoiceFrame')
 
     def create_cooc_matrix_from_xlsx(self, curr_frame_name, workbook_name):
         self.show_frame(curr_frame_name, 'LoadingScreen')
@@ -97,13 +97,27 @@ class MainGUI(Tk):
         my_thread.start()
         my_thread.join()
 
-        self.frames['VectorDrawGui'].cooc_matrix_vector_plotter = my_thread.get_cooc_matrix()
-        self.show_frame('LoadingScreen', 'VectorDrawGui')
+        # self.frames['VectorDrawGui'].cooc_matrix_vector_plotter = my_thread.get_cooc_matrix()
+        self.show_frame('LoadingScreen', 'ChoiceFrame')
+
+    def process_interview(self):
+        self.change_status('Loading ...')
+        main_func.hypernym_interview_graph(True)
+        main_func.hypernym_interview_graph(False)
+        main_func.semantic_similarity_interview_graph(cts.data['interview'], True)
+        main_func.semantic_similarity_interview_graph(cts.data['interview'], False)
+
+        self.show_frame('InterviewOptions', 'ChoiceFrame')
 
     def on_closing(self):
         if messagebox.askokcancel("Quit", "Do you want to quit?"):
             quit(0)
             self.destroy()
+
+
+"""
+-------------------------------------------------------------------------------------------------------------
+"""
 
 
 class ChoiceFrame(Frame):
@@ -116,19 +130,51 @@ class ChoiceFrame(Frame):
         label = Label(self, text="Choose the program input form")
         label.grid(row=0, sticky=W+E+S, pady=1)
 
-        self.xlsx_button = Button(self, text='Input from xlsx',
-                                  command=lambda: self.controller.show_frame(self.name(), "LoadXlsx"))
         self.txt_button = Button(self, text='Input from txt',
                                  command=lambda: self.controller.show_frame(self.name(), "LoadTxt"))
-        self.chapters_button = Button(self, text='Input from txt chapters',
-                                 command=lambda: self.controller.show_frame(self.name(), "LoadChapters"))
+        self.interview_button = Button(self, text='Interview processing',
+                                       command=lambda: self.controller.show_frame(self.name(), "InterviewOptions"))
 
-        self.txt_button.grid(row=1, sticky=W+E, pady=10, padx=15)
-        self.xlsx_button.grid(row=2, sticky=W+E, pady=(0, 10), padx=15)
+        self.txt_button.grid(sticky=W+E, pady=10, padx=15)
+        self.interview_button.grid(sticky=W+E, pady=(0, 10), padx=15)
 
     @staticmethod
     def name():
         return 'ChoiceFrame'
+
+
+"""
+-------------------------------------------------------------------------------------------------------------
+"""
+
+
+class InterviewOptions(Frame):
+
+    def __init__(self, parent, controller):
+        Frame.__init__(self, parent)
+
+        self.controller = controller
+
+        self.submit_button = Button(self, text='Start interview processing', command=self.submit_function)
+        self.submit_button.grid(pady=(0, 15), padx=15, columnspan=2, sticky=W + E)
+
+        self.back_button = Button(self, text='Go Back',
+                                  command=lambda: self.controller.show_frame(self.name(), 'ChoiceFrame'))
+        self.back_button.grid(pady=(0, 10), padx=15, sticky=W + E)
+
+    def name(self):
+        return 'InterviewOptions'
+
+    def submit_function(self):
+        processing_thread = NormalThread(self.controller.process_interview)
+        processing_thread.start()
+        processing_thread.join()
+        self.controller.change_status('Ok')
+
+
+"""
+-------------------------------------------------------------------------------------------------------------
+"""
 
 
 class LoadTxt(Frame):
@@ -167,9 +213,9 @@ class LoadTxt(Frame):
         self.label_4.grid(row=0, column=0, sticky=E)
 
         self.book_value = StringVar()
-        self.book_value.set('product_design_and_development')
-        self.book_options = OptionMenu(self.inside_frame_book,
-                                                self.book_value, "product_design_and_development")
+        book_name_list = utils.get_book_names_in_json(True)
+        self.book_value.set(book_name_list[0])
+        self.book_options = OptionMenu(self.inside_frame_book, self.book_value, *book_name_list)
         self.book_options.grid(row=0, column=1, sticky=W)
 
         self.analyse_chapters_value = BooleanVar()
@@ -252,6 +298,11 @@ class LoadTxt(Frame):
         processing_thread.start()
 
 
+"""
+-------------------------------------------------------------------------------------------------------------
+"""
+
+
 class LoadXlsx(Frame):
 
     def __init__(self, parent, controller):
@@ -293,6 +344,11 @@ class LoadXlsx(Frame):
         processing_thread.start()
 
 
+"""
+-------------------------------------------------------------------------------------------------------------
+"""
+
+
 class LoadingScreen(Frame):
 
     def __init__(self, parent, controller):
@@ -308,76 +364,86 @@ class LoadingScreen(Frame):
         return 'LoadingScreen'
 
 
-class VectorDrawGui(Frame):
+"""
+-------------------------------------------------------------------------------------------------------------
+"""
 
-    def __init__(self, parent, controller, cooc_matrix_vector_plotter=None):
-        Frame.__init__(self, parent)
 
-        self.controller = controller
-        controller.title('Inputs for drawing the word vectors')
-        self.cooc_matrix_vector_plotter = cooc_matrix_vector_plotter
+# class VectorDrawGui(Frame):
+#
+#     def __init__(self, parent, controller, cooc_matrix_vector_plotter=None):
+#         Frame.__init__(self, parent)
+#
+#         self.controller = controller
+#         controller.title('Inputs for drawing the word vectors')
+#         self.cooc_matrix_vector_plotter = cooc_matrix_vector_plotter
+#
+#         self.status_var = StringVar()
+#         self.status_var.set('Status: Ok')
+#         self.curr_status_label = Label(self, textvariable=self.status_var, font=('TkDefaultFont', 11))
+#
+#         self.noun1_label = Label(self, text='Enter the name of the first noun (first vector)',
+#                                  font=('TkDefaultFont', 11))
+#         self.noun2_label = Label(self, text='Enter the name of the second noun (second vector)',
+#                                  font=('TkDefaultFont', 11))
+#         self.verb1_label = Label(self, text='Enter the name of the first verb (x axis)', font=('TkDefaultFont', 11))
+#         self.verb2_label = Label(self, text='Enter the name of the second verb (y axis)', font=('TkDefaultFont', 11))
+#
+#         self.noun1_entry = Entry(self, font=('TkDefaultFont', 11))
+#         self.noun2_entry = Entry(self, font=('TkDefaultFont', 11))
+#         self.verb1_entry = Entry(self, font=('TkDefaultFont', 11))
+#         self.verb2_entry = Entry(self, font=('TkDefaultFont', 11))
+#
+#         self.submit_button = Button(self, text='Draw graph', command=self.submit_button, font=('TkDefaultFont', 11))
+#
+#         self.quit_button = Button(self, text='Exit Program', relief=RAISED, command=self.quit_program,
+#                                   font=('TkDefaultFont', 11))
+#
+#         self.curr_status_label.grid(row=0, columnspan=2, sticky=W+E, padx=(0, 8), pady=8)
+#
+#         self.noun1_label.grid(row=1, sticky=W+E, columnspan=2, padx=8)
+#         self.noun1_entry.grid(row=2, sticky=W+E, columnspan=2, padx=8, pady=(0, 15))
+#
+#         self.noun2_label.grid(row=3, sticky=W+E, columnspan=2, padx=8)
+#         self.noun2_entry.grid(row=4, sticky=W+E, columnspan=2, padx=8, pady=(0, 15))
+#
+#         self.verb1_label.grid(row=5, sticky=W+E, columnspan=2, padx=8)
+#         self.verb1_entry.grid(row=6, sticky=W+E, columnspan=2, padx=8, pady=(0, 15))
+#
+#         self.verb2_label.grid(row=7, sticky=W+E, columnspan=2, padx=8)
+#         self.verb2_entry.grid(row=8, sticky=W+E, columnspan=2, padx=8, pady=(0, 15))
+#
+#         self.submit_button.grid(row=9, column=0, padx=8, pady=8)
+#
+#         self.quit_button.grid(row=10, sticky=W+E, columnspan=2, padx=8, pady=8)
+# #product_design_and_development.txt
+#     @staticmethod
+#     def name():
+#         return 'VectorDrawGui'
+#
+#     def submit_button(self):
+#         if self.cooc_matrix_vector_plotter is None:
+#             self.controller.change_status('cooc-matrix not generated yet')
+#             return
+#
+#         status = self.cooc_matrix_vector_plotter(self.noun1_entry.get(), self.noun2_entry.get(),self.verb1_entry.get(),
+#                                                  self.verb2_entry.get())
+#
+#         if status:
+#             self.status_var.set('Status: Ok')
+#             self.curr_status_label.config(foreground='black')
+#         else:
+#             self.status_var.set('Status: One or more of the inputs where not found.\n Please check the xlsx archive.')
+#             self.curr_status_label.config(foreground='red')
+#
+#     @staticmethod
+#     def quit_program():
+#         quit()
 
-        self.status_var = StringVar()
-        self.status_var.set('Status: Ok')
-        self.curr_status_label = Label(self, textvariable=self.status_var, font=('TkDefaultFont', 11))
 
-        self.noun1_label = Label(self, text='Enter the name of the first noun (first vector)',
-                                 font=('TkDefaultFont', 11))
-        self.noun2_label = Label(self, text='Enter the name of the second noun (second vector)',
-                                 font=('TkDefaultFont', 11))
-        self.verb1_label = Label(self, text='Enter the name of the first verb (x axis)', font=('TkDefaultFont', 11))
-        self.verb2_label = Label(self, text='Enter the name of the second verb (y axis)', font=('TkDefaultFont', 11))
-
-        self.noun1_entry = Entry(self, font=('TkDefaultFont', 11))
-        self.noun2_entry = Entry(self, font=('TkDefaultFont', 11))
-        self.verb1_entry = Entry(self, font=('TkDefaultFont', 11))
-        self.verb2_entry = Entry(self, font=('TkDefaultFont', 11))
-
-        self.submit_button = Button(self, text='Draw graph', command=self.submit_button, font=('TkDefaultFont', 11))
-
-        self.quit_button = Button(self, text='Exit Program', relief=RAISED, command=self.quit_program,
-                                  font=('TkDefaultFont', 11))
-
-        self.curr_status_label.grid(row=0, columnspan=2, sticky=W+E, padx=(0, 8), pady=8)
-
-        self.noun1_label.grid(row=1, sticky=W+E, columnspan=2, padx=8)
-        self.noun1_entry.grid(row=2, sticky=W+E, columnspan=2, padx=8, pady=(0, 15))
-
-        self.noun2_label.grid(row=3, sticky=W+E, columnspan=2, padx=8)
-        self.noun2_entry.grid(row=4, sticky=W+E, columnspan=2, padx=8, pady=(0, 15))
-
-        self.verb1_label.grid(row=5, sticky=W+E, columnspan=2, padx=8)
-        self.verb1_entry.grid(row=6, sticky=W+E, columnspan=2, padx=8, pady=(0, 15))
-
-        self.verb2_label.grid(row=7, sticky=W+E, columnspan=2, padx=8)
-        self.verb2_entry.grid(row=8, sticky=W+E, columnspan=2, padx=8, pady=(0, 15))
-
-        self.submit_button.grid(row=9, column=0, padx=8, pady=8)
-
-        self.quit_button.grid(row=10, sticky=W+E, columnspan=2, padx=8, pady=8)
-#product_design_and_development.txt
-    @staticmethod
-    def name():
-        return 'VectorDrawGui'
-
-    def submit_button(self):
-        if self.cooc_matrix_vector_plotter is None:
-            self.controller.change_status('cooc-matrix not generated yet')
-            return
-
-        status = self.cooc_matrix_vector_plotter(self.noun1_entry.get(), self.noun2_entry.get(),self.verb1_entry.get(),
-                                                 self.verb2_entry.get())
-
-        if status:
-            self.status_var.set('Status: Ok')
-            self.curr_status_label.config(foreground='black')
-        else:
-            self.status_var.set('Status: One or more of the inputs where not found.\n Please check the xlsx archive.')
-            self.curr_status_label.config(foreground='red')
-
-    @staticmethod
-    def quit_program():
-        quit()
+"""
+-------------------------------------------------------------------------------------------------------------
+"""
 
 
 class NormalThread(threading.Thread):
@@ -406,9 +472,9 @@ class CoocMatrixThread(threading.Thread):
             return self.cooc_matrix_vector_plotter
 
 
-def main():
-    app = MainGUI()
-    app.mainloop()
+"""
+-------------------------------------------------------------------------------------------------------------
+"""
 
 
 def check_for_file(path, file_name, update_status_func):
@@ -421,14 +487,14 @@ def check_for_file(path, file_name, update_status_func):
         return False
 
 
-# def check_for_folder(path, update_status_func):
-#     print(path)
-#     if os.path.isfile(path):
-#         update_status_func(ok_status)
-#         return True
-#     else:
-#         update_status_func(file_not_found_status + ': ' + file_name)
-#         return False
+"""
+-------------------------------------------------------------------------------------------------------------
+"""
+
+
+def main():
+    app = MainGUI()
+    app.mainloop()
 
 
 if __name__ == "__main__":
