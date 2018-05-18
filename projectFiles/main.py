@@ -34,8 +34,6 @@ def load_from_txt(path_dict, input_name, encoding, save_in_xlsx, workbook_name, 
                                                         'cognitive_level_frequency_chapter' + chapter + '.pdf',
                                                         content_dict['verb_frequency_dict'])
 
-    quit()
-
     windows = content_dict['windows']
     # Will create the co-occurrence matrix with the obtained windows
     cooc_matrix = mu.CoocMatrix(windows, enable_lemmatization=enable_lemmatization)
@@ -159,9 +157,6 @@ def load_from_txt(path_dict, input_name, encoding, save_in_xlsx, workbook_name, 
     # This will set a variable of the object 'cooc_matrix' aloowing for the creation of the soc_pmi_matrix
     cooc_matrix.is_pmi_calculated = True
 
-    # Will create the Second order co-occurrence matrix from the filtered co-occurrence matrix matrix
-    # cooc_matrix.create_soc_pmi_matrix(cooc_matrix.matrix)
-
     if save_in_xlsx:
         xlsxUtils.save_matrix_in_xlsx(cooc_matrix, pure_matrix, path_to_output_xlsx, workbook_name)
 
@@ -245,6 +240,10 @@ def load_from_chapters(path_dict, encoding, save_in_xlsx, enable_verb_filter, en
 def create_verb_co_occurrence_matrix():
     import nltk
     import heapq
+    from nltk.corpus import wordnet as wn
+
+    # stanford_server = utils.StanfordProcess(cts.home + 'systemScripts/runStanfordCoreNLP.sh')
+    # stanford_server.start_process()
 
     lemmatizer = nltk.stem.WordNetLemmatizer()
 
@@ -262,7 +261,6 @@ def create_verb_co_occurrence_matrix():
     tagged_sentences = [tagger.tag(sent) for sent in tokenized_sentences]
     verbs_in_each_sentence = [[lemmatizer.lemmatize(word, 'v') for word,tag in sent if tag.startswith('V')]
                               for sent in tagged_sentences]
-    print(verbs_in_each_sentence)
 
     v2i_row = {}
     i2v_row = {}
@@ -282,19 +280,38 @@ def create_verb_co_occurrence_matrix():
         if skip_loop:
             continue
 
+        filtered_sent = []
         for verb in sent:
+            synset_list = wn.synsets(verb, pos='v')
+            if synset_list:
+               filtered_sent.append(verb)
+
+        for verb in filtered_sent:
             if verb in cts.verbs_to_keep:
+                if verb not in v2i_column:
+                    v2i_column[verb] = index_column
+                    i2v_column[index_row] = verb
+                    index_column += 1
+            else:
                 if verb not in v2i_row:
                     v2i_row[verb] = index_row
                     i2v_row[index_row] = verb
                     index_row += 1
-            else:
-                if verb not in v2i_column:
-                    v2i_column[verb] = index_column
-                    i2v_column[index_column] = verb
-                    index_column += 1
 
-    sim_matrix = np.zeros((len(v2i_row),len(v2i_column)), dtype=int)
+
+    v2i_column_temp = {}
+    new_index = 0
+    for cog_level in cts.names_of_cognitive_levels:
+        print(cog_level)
+        for verb in cts.cognitive_levels[cog_level + '_verbs']:
+            if verb in v2i_column:
+                v2i_column_temp[verb] = new_index
+                new_index += 1
+
+    v2i_column = v2i_column_temp
+    i2v_column = utils.invert_dictionary(v2i_column)
+
+    sim_matrix = np.zeros((len(v2i_row),len(v2i_column) + 1), dtype=float)
 
     for sent in verbs_in_each_sentence:
         if len(sent) > 1:
@@ -306,77 +323,76 @@ def create_verb_co_occurrence_matrix():
                 for verb2 in sent:
                     try:
                         j = v2i_column[verb2]
-                        sim_matrix[i][j] += 1
+                        sim_matrix[i][j] += 1.0
                     except:
                         continue
 
+    v2i_column['row_sum'] = len(i2v_column)
+    i2v_column[v2i_column['row_sum']] = 'row_sum'
+
+    for index in v2i_row.values():
+        sum_value = np.sum(sim_matrix[index])
+        sim_matrix[index] = np.divide(sim_matrix[index], sum_value)
+        sim_matrix[index][v2i_column['row_sum']] = sum_value
+
+
+    sum_column_index = v2i_column['row_sum']
+    sum_column = sim_matrix[:,sum_column_index]
+    largests_row_indices = heapq.nlargest(len(sum_column), range(len(sum_column)), sum_column.take)
+    ordered_row_verbs = [i2v_row[index] for index in largests_row_indices]
+
+    sim_matrix_ordered = np.zeros((len(v2i_row), len(v2i_column)))
+
+    for i in range(sim_matrix_ordered.shape[0]):
+        sim_matrix_ordered[i] = sim_matrix[largests_row_indices[i]]
+
+
+    v2i_row.clear()
+    i2v_row.clear()
+    for index,verb in enumerate(ordered_row_verbs):
+        v2i_row[verb] = index
+        i2v_row[index] = verb
+
+
     wb = xlsxUtils.MyExcelFileWrite(cts.home + '../', 'verb_co-occurrence_matrix_PDandD_42Xall.xlsx')
     wb.add_new_worksheet('matrix')
-    wb.write_matrix_in_xlsx('matrix', sim_matrix, i2v_row, i2v_column)
+    wb.write_matrix_in_xlsx('matrix', sim_matrix_ordered, i2v_row, i2v_column)
     wb.close_workbook()
 
-    txt_out = open(cts.home + '../synthesis_fo_verb_co-occurrence_matrix.txt', 'w')
-    for level in cts.names_of_cognitive_levels:
-        txt_out.write('Cognitive level: ' + level + '\n')
+    cognitive_dist = {}
+    for verb, i_index in v2i_row.items():
+        if sim_matrix_ordered[i_index][v2i_column['row_sum']] < 5:
+            continue
+        cognitive_dist[verb] = {}
+        for cog_level_name, verbs in cts.cognitive_levels.items():
+            true_lvl_name = cog_level_name[:-6]
+            for verb_42, j_index in v2i_column.items():
+                if verb_42 in verbs:
+                    if true_lvl_name in cognitive_dist[verb]:
+                        cognitive_dist[verb][true_lvl_name] += sim_matrix_ordered[i_index][j_index]
+                    else:
+                        cognitive_dist[verb][true_lvl_name] = sim_matrix_ordered[i_index][j_index]
 
-        verbs = cts.cognitive_levels[level + '_verbs']
-        for verb in verbs.keys():
-            try:
-                row_index = v2i_row[verb]
-            except:
-                continue
-            txt_out.write('\t verb: ' + verb + '\n')
-            row = sim_matrix[row_index]
-            bigger_freq_indices = heapq.nlargest(20, range(len(row)), row.take)
-            bigger_column_verbs = [i2v_column[index] for index in bigger_freq_indices]
-            bigger_column_freq = [sim_matrix[row_index][j] for j in bigger_freq_indices]
-            j = 0
-            for column_verb in bigger_column_verbs:
-                txt_out.write('\t\t* ' + column_verb + ' - ' + str(bigger_column_freq[j]) + '\n')
-                j += 1
-
-        txt_out.write('\n')
-
-
-    list_row_verbs_ordered = list(zip(*utils.sort_dict(v2i_row)))[0]
-    list_of_row_synsets = [cts.verbs_to_keep[verb] for verb in list_row_verbs_ordered]
-    list_column_verbs_ordered = list(zip(*utils.sort_dict(v2i_column)))[0]
-
-    unknown_words, matrix = mu.calculate_sim_matrix_from_dif_lists(list_of_row_synsets, list_column_verbs_ordered)
 
     gdf_out = open(cts.home + '../' + '42VerbXall_graph_PDandD.gdf', 'w')
-    gdf_out.write('nodedef>name VARCHAR, frequency INTEGER\n')
+    gdf_out.write('nodedef>name VARCHAR\n')
 
-    for verb in list_row_verbs_ordered:
-        curr_row = sim_matrix[v2i_row[verb]]
-        gdf_out.write(verb + ',' + str(np.sum(curr_row)) + '\n')
+    level_nodes = 'knowledge\ncomprehension\napplication\nanalysis\nsynthesis\nevaluation\n'
+    gdf_out.write(level_nodes)
 
-    for verb in list_column_verbs_ordered:
-        if verb in unknown_words:
-            continue
-        curr_column = sim_matrix[:,v2i_column[verb]]
-        gdf_out.write(verb + ',' + str(np.sum(curr_column)) + '\n')
+    for verb in cognitive_dist.keys():
+        gdf_out.write(verb + '\n')
 
     gdf_out.write('edgedef>node1 VARCHAR, node2 VARCHAR, weight FLOAT\n')
 
-    i = 0
-    while i < len(v2i_row):
-        j = 0
-        while j < len(v2i_column):
-            if i2v_column[j] in unknown_words:
-                j += 1
-                continue
-
-            if matrix[i][j] < 0.4:
-                j += 1
-                continue
-
-            gdf_out.write(i2v_row[i] + ',' + i2v_column[j] + ',' +
-                   '{0:.2f}'.format(matrix[i][j]) + '\n')
-            j += 1
-        i += 1
+    for verb, cog_level_dict in cognitive_dist.items():
+        for lvl_name, value in cog_level_dict.items():
+            if value > 0.1:
+                gdf_out.write(verb + ',' + lvl_name + ',' + str(value) + '\n')
 
     gdf_out.close()
+
+    # stanford_server.kill_process()
 
 
 def get_verb_filter_lemmatization_code(enable_lemmatization, enable_verb_filter):
@@ -417,7 +433,7 @@ def get_correct_files_feature_identification(chapter, verb_filter_lemmatization_
 # load_from_txt(cts.data['product_design_and_development'], 'filtered_input.txt', 'utf-8', False, 'asdf', True,
 #                   True, chapter='NA')
 
-create_verb_co_occurrence_matrix()
+# create_verb_co_occurrence_matrix()
 # hypernym_interview_graph()
 # hypernym_interview_graph(True)
 # semantic_similarity_interview_graph(cts.data['interview'], True)

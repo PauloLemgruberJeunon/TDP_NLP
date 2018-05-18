@@ -15,7 +15,8 @@ def get_each_verb_from_gdf_string(only_verb_node_string):
     return dict_of_verbs
 
 
-books_names_list = utils.get_book_names_in_json(False)
+# books_names_list = utils.get_book_names_in_json(False)
+books_names_list = ['product_design_and_development','engineering_design']
 
 all_nouns = {}
 k = 0

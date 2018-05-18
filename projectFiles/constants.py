@@ -22,6 +22,7 @@ comprehension_verbs = {'classify': 1, 'discuss': 1, 'distinguish': 1, 'estimate'
                        'review': 1}
 application_verbs = {'apply': 1, 'choose': 1, 'compute': 1, 'illustrate': 1, 'modify': 1, 'practice': 1, 'solve': 1}
 analysis_verbs = {'analyze': 1, 'calculate': 1, 'compare': 1, 'criticize': 1, 'infer': 1, 'model': 1, 'test': 1}
+analysis_verbs = {'analyze': 1, 'calculate': 1, 'compare': 1, 'criticize': 1, 'infer': 1, 'model': 1, 'test': 1}
 synthesis_verbs = {'combine': 1, 'create': 1, 'design': 1, 'develop': 1, 'generate': 1, 'prepare': 1, 'synthesize': 1}
 evaluation_verbs = {'conclude': 1, 'defend': 1, 'evaluate': 1, 'explain': 1, 'justify': 1, 'interpret': 1, 'predict': 1}
 

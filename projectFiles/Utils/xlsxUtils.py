@@ -153,10 +153,6 @@ def save_matrix_in_xlsx(cooc_matrix, pure_matrix, path_to_output_xlsx, workbook_
         workbook.write_matrix_in_xlsx('cooc_matrix_full', cooc_matrix.matrix, inverted_matrix_noun_rows,
                                       utils.invert_dictionary(cooc_matrix.verb_columns))
 
-        # write_cooc_matrix(inverted_matrix_noun_rows,
-        #                         inverted_matrix_noun_rows, cooc_matrix.soc_pmi_matrix,
-        #                         worksheet2)
-
         ordered_verbs = utils.sort_dict(cooc_matrix.verb_filtered_arrays)
         ordered_verbs = [ordered_verbs[l][0] for l in range(len(ordered_verbs))]
         workbook.write_verb_filtered_arrays('verb_filtered_arrays', cooc_matrix.verb_filtered_arrays,
@@ -179,9 +175,6 @@ def find_associated_verbs_in_xlsx_sheet(full_noun_and_verb_list, sheet):
             if full_noun_and_verb_list[j] == temp_noun_list[k]:
                 full_noun_and_verb_list[j] = (full_noun_and_verb_list[j], '[' + temp_verb_list[k] + ']')
                 break
-
-    # for i in range(len(full_noun_and_verb_list)):
-    #     print(full_noun_and_verb_list[i])
 
 
 def find_nature_of_entities(full_noun_list, wb):

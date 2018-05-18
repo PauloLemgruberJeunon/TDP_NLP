@@ -18,6 +18,8 @@ class MainGUI(Tk):
     def __init__(self, *args, **kwargs):
         Tk.__init__(self, *args, **kwargs)
 
+        self.stanford_process = utils.StanfordProcess(cts.home + 'systemScripts' + cts.sep + 'runStanfordCoreNLP.sh')
+
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
 
         self.path_to_xlsx = cts.path_to_generated_xlsx
@@ -281,6 +283,7 @@ class LoadTxt(Frame):
             self.workbook_name_entry['state'] = 'disabled'
 
     def submit_function(self):
+        # self.controller.stanford_process.start_process()
         success = check_for_file(cts.data[self.book_value.get()]['path_to_input'], self.txt_input_name_value.get(),
                                  self.controller.change_status)
 

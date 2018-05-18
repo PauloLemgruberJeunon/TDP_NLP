@@ -3,12 +3,12 @@ This file intends to be an utility box, containing functions to help with smalle
 """
 
 import projectFiles.constants as cts
-from projectFiles.Utils import xlsxUtils
 
 import numpy as np
 import heapq
 
-import os
+import os, signal
+from subprocess import Popen
 
 import matplotlib.patches as mpatches
 from matplotlib import pyplot as plt
@@ -18,6 +18,18 @@ import nltk
 from nltk.tag.stanford import CoreNLPPOSTagger
 
 from py4j.java_gateway import JavaGateway
+
+
+class StanfordProcess:
+    def __init__(self, path_to_script):
+        self.path_to_script = path_to_script
+        self.pid = 0
+
+    def start_process(self):
+        self.pid = Popen(self.path_to_script, shell=True)
+
+    def kill_process(self):
+        os.kill(int(self.pid), signal.SIGTERM)
 
 
 '''
@@ -703,7 +715,6 @@ Below here are some pre-steps that have to be made
 
 def setup_environment():
     for dict in cts.data.values():
-        for value in dict.values():
-            if isinstance(value, str) and value != 'department':
-
+        for key,value in dict.items():
+            if isinstance(key, str) and isinstance(value, str) and key != 'department':
                 create_new_directory(value)

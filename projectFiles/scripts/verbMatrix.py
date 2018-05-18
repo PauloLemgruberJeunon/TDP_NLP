@@ -34,23 +34,23 @@ for verb in blooms_verbs:
 print(matrix_columns_rows_index)
 print('')
 
-# content_dict = mu.calculate_sim_matrix_from_list(blooms_verbs_synsets, cts.all_semantic_similarity_methods,
-#                                                  'v', True, True)
-#
-# noun_to_noun_sim_matrices = content_dict['noun_to_noun_sim_matrices']
-#
-# avg_sim_matrix = noun_to_noun_sim_matrices['average_of_methods']
+content_dict = mu.calculate_sim_matrix_from_list(blooms_verbs_synsets, cts.all_semantic_similarity_methods,
+                                                 'v', True, True)
 
-avg_sim_matrix = np.zeros((42,42))
-i = 0
-for verb1 in matrix_columns_rows_index.keys():
-    j = 0
-    for verb2 in matrix_columns_rows_index.keys():
-        avg_sim_matrix[i][j] = model.wv.similarity(verb1, verb2)
-        j += 1
-    i += 1
+noun_to_noun_sim_matrices = content_dict['noun_to_noun_sim_matrices']
 
-workbook = xlsxUtils.MyExcelFileWrite('/home/paulojeunon/Desktop/', '42_verbs_similarity_w2v.xlsx')
+avg_sim_matrix = noun_to_noun_sim_matrices['average_of_methods']
+
+# avg_sim_matrix = np.zeros((42,42))
+# i = 0
+# for verb1 in matrix_columns_rows_index.keys():
+#     j = 0
+#     for verb2 in matrix_columns_rows_index.keys():
+#         avg_sim_matrix[i][j] = model.wv.similarity(verb1, verb2)
+#         j += 1
+#     i += 1
+
+workbook = xlsxUtils.MyExcelFileWrite('/home/paulojeunon/Desktop/', '42_verbs_similarity_wv.xlsx')
 workbook.add_new_worksheet('verbs_sim')
 
 inverted_dict = utils.invert_dictionary(matrix_columns_rows_index)
@@ -81,7 +81,8 @@ for verb1 in blooms_verbs:
 max_value = -10
 for key in matrix_cognitive_levels.keys():
     for key2 in matrix_cognitive_levels.keys():
-        matrix_cognitive_levels[key][key2] = round(matrix_cognitive_levels[key][key2] * 100 / (42))
+        div_num = 42 if key == key2 else 49
+        matrix_cognitive_levels[key][key2] = round(matrix_cognitive_levels[key][key2] * 100 / (div_num))
         if max_value < matrix_cognitive_levels[key][key2]:
             max_value = matrix_cognitive_levels[key][key2]
 
@@ -89,14 +90,13 @@ for key in matrix_cognitive_levels.keys():
 #     for key2 in matrix_cognitive_levels.keys():
 #         matrix_cognitive_levels[key][key2] = 100 * matrix_cognitive_levels[key][key2] / max_value
 
-workbook = xlsxUtils.MyExcelFileWrite('/home/paulojeunon/Desktop/', '6_cognitive_levels_similarity.xlsx')
+workbook = xlsxUtils.MyExcelFileWrite('/home/paulojeunon/Desktop/', '6_cognitive_levels_similarity_wv.xlsx')
 workbook.add_new_worksheet('levels_sim')
 
 workbook.write_dict_matrix_in_xlsx('levels_sim', matrix_cognitive_levels, cts.names_of_cognitive_levels,
                                 cts.names_of_cognitive_levels)
 
 workbook.close_workbook()
-
 
 
 # data_frames = []
